@@ -2,10 +2,10 @@
   "id": "kimono-kaku",
   "title": "着物の格",
   "guide": {
-    "lesson_roles": "",
-    "must_include": "",
+    "lesson_roles": "和装のTPOについて、着物の格について学習する。帯や小物、そのとり合わせについては別のコースで学習する。",
+    "must_include": "きものアイテムの名称。",
     "revisit": "",
     "exclude": "話法・価格・着付けの技法",
-    "completion": ""
+    "completion": "一通り、着物のアイテムの種類を網羅したら完了できる。"
   }
 }
