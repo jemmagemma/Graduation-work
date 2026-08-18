@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import type { DrillData, Lesson, Question, SeriesGuide, CourseGuide } from '@/lib/types'
 
-/* ── 型 ─────────────────────────────────────────────────── */
+/* ── UI 選択状態 ───────────────────────────────────────────── */
 type ActiveSelection =
   | { type: 'series' }
   | { type: 'course' }
@@ -10,151 +11,182 @@ type ActiveSelection =
   | { type: 'question'; lessonIdx: number; qIdx: number }
   | { type: 'settings' }
 
-type LessonStatus = 'pending' | 'draft' | 'approved'
-type InspectionStatus = 'pending' | 'pass' | 'fail'
-
-interface Question {
-  id: number
-  qType: 'four_choice' | 'true_false'
-  text: string
-  choices?: string[]
-  correct?: number
-  answer?: boolean
-  explanation: string
-}
-
-interface Lesson {
-  title: string
-  status: LessonStatus
-  inspection: InspectionStatus
-  locked: boolean
-  questions: Question[]
-}
-
-/* ── モックデータ ─────────────────────────────────────────── */
-const LESSONS: Lesson[] = [
-  {
-    title: '第一礼装',
-    status: 'draft',
-    inspection: 'pass',
-    locked: false,
-    questions: [
-      { id: 1, qType: 'four_choice', text: '黒留袖の「段」として正しいものはどれですか？', choices: ['第一礼装', '準礼装', '略礼服', 'しゃれもの'], correct: 0, explanation: '黒留袖は已婚女性の第一礼装です。五つ紋・比翼仕立てが形式上の要件になります。' },
-      { id: 2, qType: 'true_false', text: '色打掛は第一礼装に分類される。', answer: true, explanation: '色打掛は婚礼衣装として第一礼装に位置づけられます。' },
-      { id: 3, qType: 'four_choice', text: '振袖を着用できる対象について正しいものはどれですか？', choices: ['未婚女性のみ', '既婚女性のみ', '性別に関わらず', '年齢制限なし'], correct: 0, explanation: '振袖は未婚女性の第一礼装です。成人式や婚礼の席での着用が一般的です。' },
-      { id: 4, qType: 'true_false', text: '留袖には必ず五つ紋が必要である。', answer: true, explanation: '留袖（黒留袖・色留袖）は最高の礼装として五つ紋が原則です。' },
-      { id: 5, qType: 'four_choice', text: '色留袖の着用対象として正しいものはどれですか？', choices: ['未婚・既婚ともに可', '既婚女性のみ', '未婚女性のみ', '制限なし'], correct: 0, explanation: '色留袖は未婚・既婚を問わず着用できる礼装です。' },
-      { id: 6, qType: 'true_false', text: '黒留袖の裾模様は上前のみに入っている。', answer: false, explanation: '黒留袖の裾模様は上前・下前・おくみの全体に入ります。' },
-      { id: 7, qType: 'four_choice', text: '打掛の着方として正しいものはどれですか？', choices: ['帯の上から羽織る', '帯の下に着る', '肩に掛けるだけ', 'どちらでもよい'], correct: 0, explanation: '打掛は帯の上から羽織る衣装で、婚礼などの特別な場面で着用します。' },
-      { id: 8, qType: 'true_false', text: '白無垢は第一礼装に含まれる。', answer: true, explanation: '白無垢は婚礼の最礼装として第一礼装に分類されます。' },
-    ],
-  },
-  { title: '準礼装・略礼服', status: 'pending', inspection: 'pending', locked: true, questions: [] },
-  { title: 'しゃれもの',   status: 'pending', inspection: 'pending', locked: true, questions: [] },
-]
-
-const STATUS_LABEL: Record<LessonStatus, string> = { pending: '未生成', draft: '下書き', approved: 'これでよい' }
-const STATUS_DOT: Record<LessonStatus, string>   = { pending: '□', draft: '○', approved: '●' }
-const STATUS_DOT_COLOR: Record<LessonStatus, string> = {
+/* ── 定数 ────────────────────────────────────────────────── */
+const STATUS_LABEL  = { pending: '未生成', draft: '下書き', approved: 'これでよい' } as const
+const STATUS_DOT    = { pending: '□', draft: '○', approved: '●' } as const
+const STATUS_DOT_COLOR = {
   pending:  'text-slate-400',
   draft:    'text-amber-400',
   approved: 'text-emerald-400',
+} as const
+const INSPECT_LABEL = { pending: '未実施', pass: '合格', fail: '不合格' } as const
+
+const EMPTY_SERIES_GUIDE: SeriesGuide = {
+  target: '', purpose: '', terms: '', dan_definition: '',
+  forbidden_synonyms: 'フォーマル度・ドレスコード・ランク・レベル',
+  exceptions: '', writing_style: '',
 }
-const INSPECTION_LABEL: Record<InspectionStatus, string> = { pending: '未実施', pass: '合格', fail: '不合格' }
+const EMPTY_COURSE_GUIDE: CourseGuide = {
+  lesson_roles: '', must_include: '', revisit: '',
+  exclude: '話法・価格・着付けの技法', completion: '',
+}
 
 /* ── メインページ ─────────────────────────────────────────── */
 export default function Page() {
-  const [selected, setSelected] = useState<ActiveSelection>({ type: 'lesson', idx: 0 })
-  const [seriesOpen, setSeriesOpen]   = useState(true)
-  const [courseOpen, setCourseOpen]   = useState(true)
-  const [openLesson, setOpenLesson]   = useState<number | null>(0)
+  const [seriesGuide, setSeriesGuide] = useState<SeriesGuide>(EMPTY_SERIES_GUIDE)
+  const [courseGuide, setCourseGuide] = useState<CourseGuide>(EMPTY_COURSE_GUIDE)
+  const [lessons, setLessons]         = useState<Lesson[]>([])
+  const [apiKey, setApiKey]           = useState('')
+  const [initLoading, setInitLoading] = useState(true)
+  const [generatingIdx, setGeneratingIdx] = useState<number | null>(null)
 
-  function selectLesson(idx: number) {
-    setSelected({ type: 'lesson', idx })
-    setOpenLesson(openLesson === idx ? null : idx)
+  const [selected, setSelected]   = useState<ActiveSelection>({ type: 'series' })
+  const [seriesOpen, setSeriesOpen] = useState(true)
+  const [courseOpen, setCourseOpen] = useState(true)
+  const [openLesson, setOpenLesson] = useState<number | null>(null)
+
+  /* 初期データ読み込み */
+  useEffect(() => {
+    fetch('/api/data')
+      .then(r => r.json())
+      .then((d: DrillData) => {
+        setSeriesGuide(d.series.guide)
+        setCourseGuide(d.course.guide)
+        setLessons(d.lessons)
+      })
+      .finally(() => setInitLoading(false))
+  }, [])
+
+  /* レッスン状態の単件更新 */
+  const updateLesson = useCallback((updated: Lesson) => {
+    setLessons(prev => prev.map(l => l.id === updated.id ? updated : l))
+  }, [])
+
+  /* 生成 */
+  const handleGenerate = useCallback(async (lessonIdx: number) => {
+    const lesson = lessons[lessonIdx]
+    if (!lesson) return
+    if (lesson.status === 'draft' && !window.confirm('現在の下書きを削除して再生成しますか？')) return
+
+    setGeneratingIdx(lessonIdx)
+    const res = await fetch('/api/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ lessonId: lesson.id, apiKey }),
+    })
+    const data = await res.json() as Lesson & { error?: string }
+    setGeneratingIdx(null)
+    updateLesson(data)
+    setSelected({ type: 'lesson', idx: lessonIdx })
+  }, [lessons, apiKey, updateLesson])
+
+  /* 承認 */
+  const handleApprove = useCallback(async (lessonIdx: number) => {
+    const lesson = lessons[lessonIdx]
+    const res = await fetch('/api/approve-lesson', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ lessonId: lesson.id }),
+    })
+    const data = await res.json() as Lesson
+    updateLesson(data)
+  }, [lessons, updateLesson])
+
+  /* 設問保存 */
+  const handleSaveQuestion = useCallback(async (lessonIdx: number, updatedQ: Question) => {
+    const lesson = lessons[lessonIdx]
+    const questions = lesson.questions.map(q => q.id === updatedQ.id ? updatedQ : q)
+    const res = await fetch('/api/save-lesson', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ lessonId: lesson.id, questions }),
+    })
+    const data = await res.json() as Lesson
+    updateLesson(data)
+  }, [lessons, updateLesson])
+
+  if (initLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-stone-100 text-slate-500 text-sm">
+        読み込み中…
+      </div>
+    )
   }
 
-  function selectQuestion(lessonIdx: number, qIdx: number) {
-    setSelected({ type: 'question', lessonIdx, qIdx })
-  }
+  const lessonIdx = selected.type === 'lesson' ? selected.idx
+    : selected.type === 'question' ? selected.lessonIdx
+    : null
 
   return (
     <div className="flex h-screen overflow-hidden bg-stone-100 text-sm font-sans">
 
       {/* ── P1: ツリー ── */}
       <aside className="w-52 shrink-0 bg-slate-800 text-slate-200 flex flex-col overflow-y-auto">
-        {/* ヘッダー */}
         <div className="px-4 py-3 border-b border-slate-700 shrink-0">
           <div className="text-[10px] text-slate-400 tracking-widest uppercase">呉服販売員ドリル</div>
           <div className="text-base font-bold text-white leading-tight mt-0.5">Quiz 工房</div>
         </div>
 
-        {/* ナビ */}
         <nav className="flex-1 p-2 text-xs">
-          {/* シリーズ */}
           <TreeItem
-            indent={0}
-            chevron={seriesOpen ? '▼' : '▶'}
-            label="格とTPO"
-            tag="シリーズ"
+            indent={0} chevron={seriesOpen ? '▼' : '▶'} label="格とTPO" tag="シリーズ"
             active={selected.type === 'series'}
-            onClick={() => { setSeriesOpen(!seriesOpen); setSelected({ type: 'series' }) }}
+            onClick={() => { setSeriesOpen(v => !v); setSelected({ type: 'series' }) }}
           />
-
           {seriesOpen && (
             <>
-              {/* コース */}
               <TreeItem
-                indent={1}
-                chevron={courseOpen ? '▼' : '▶'}
-                label="着物の格"
-                tag="コース"
+                indent={1} chevron={courseOpen ? '▼' : '▶'} label="着物の格" tag="コース"
                 active={selected.type === 'course'}
-                onClick={() => { setCourseOpen(!courseOpen); setSelected({ type: 'course' }) }}
+                onClick={() => { setCourseOpen(v => !v); setSelected({ type: 'course' }) }}
               />
-
-              {courseOpen && LESSONS.map((lesson, idx) => (
-                <div key={idx}>
-                  <button
-                    disabled={lesson.locked}
-                    onClick={() => selectLesson(idx)}
-                    className={[
-                      'w-full flex items-center gap-1.5 pl-8 pr-2 py-1.5 rounded text-left transition-colors',
-                      lesson.locked ? 'opacity-35 cursor-not-allowed' : 'hover:bg-slate-700',
-                      selected.type === 'lesson' && selected.idx === idx ? 'bg-slate-700' : '',
-                      selected.type === 'question' && selected.lessonIdx === idx ? 'bg-slate-700/50' : '',
-                    ].join(' ')}
-                  >
-                    <span className={`text-[11px] w-3 text-center ${STATUS_DOT_COLOR[lesson.status]}`}>
-                      {STATUS_DOT[lesson.status]}
-                    </span>
-                    <span className="truncate text-slate-300">{lesson.title}</span>
-                  </button>
-
-                  {/* 設問ノード */}
-                  {openLesson === idx && !lesson.locked && lesson.questions.map((q, qIdx) => (
+              {courseOpen && lessons.map((lesson, idx) => {
+                const locked = idx > 0 && lessons[idx - 1].status !== 'approved'
+                return (
+                  <div key={lesson.id}>
                     <button
-                      key={qIdx}
-                      onClick={() => selectQuestion(idx, qIdx)}
+                      disabled={locked}
+                      onClick={() => {
+                        setOpenLesson(openLesson === idx ? null : idx)
+                        setSelected({ type: 'lesson', idx })
+                      }}
                       className={[
-                        'w-full flex items-center gap-1.5 pl-12 pr-2 py-1 rounded text-left hover:bg-slate-700 transition-colors',
-                        selected.type === 'question' && selected.lessonIdx === idx && selected.qIdx === qIdx
-                          ? 'bg-slate-700' : '',
+                        'w-full flex items-center gap-1.5 pl-8 pr-2 py-1.5 rounded text-left transition-colors',
+                        locked ? 'opacity-35 cursor-not-allowed' : 'hover:bg-slate-700',
+                        lessonIdx === idx ? 'bg-slate-700' : '',
                       ].join(' ')}
                     >
-                      <span className="text-[10px] text-slate-500 w-8">設問{q.id}</span>
-                      <span className={`text-[9px] px-1 rounded ${q.qType === 'four_choice' ? 'bg-blue-900 text-blue-300' : 'bg-purple-900 text-purple-300'}`}>
-                        {q.qType === 'four_choice' ? '四択' : '○×'}
+                      <span className={`text-[11px] w-3 text-center ${STATUS_DOT_COLOR[lesson.status]}`}>
+                        {STATUS_DOT[lesson.status]}
                       </span>
+                      <span className="truncate text-slate-300">{lesson.title}</span>
                     </button>
-                  ))}
-                </div>
-              ))}
+
+                    {openLesson === idx && !locked && lesson.questions.map((q, qIdx) => (
+                      <button
+                        key={q.id}
+                        onClick={() => setSelected({ type: 'question', lessonIdx: idx, qIdx })}
+                        className={[
+                          'w-full flex items-center gap-1.5 pl-12 pr-2 py-1 rounded text-left hover:bg-slate-700',
+                          selected.type === 'question' && selected.lessonIdx === idx && selected.qIdx === qIdx
+                            ? 'bg-slate-700' : '',
+                        ].join(' ')}
+                      >
+                        <span className="text-[10px] text-slate-500 w-8">設問{q.id}</span>
+                        <span className={`text-[9px] px-1 rounded ${
+                          q.qType === 'four_choice' ? 'bg-blue-900 text-blue-300' : 'bg-purple-900 text-purple-300'
+                        }`}>
+                          {q.qType === 'four_choice' ? '四択' : '○×'}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )
+              })}
             </>
           )}
         </nav>
 
-        {/* 設定 */}
         <div className="border-t border-slate-700 p-2 shrink-0">
           <button
             onClick={() => setSelected({ type: 'settings' })}
@@ -164,20 +196,63 @@ export default function Page() {
               selected.type === 'settings' ? 'bg-slate-700 text-slate-200' : '',
             ].join(' ')}
           >
-            <span>⚙</span>
-            <span>設定</span>
+            <span>⚙</span>設定
           </button>
         </div>
       </aside>
 
       {/* ── P2: ガイド ── */}
       <div className="w-72 shrink-0 border-r border-stone-200 flex flex-col bg-white overflow-y-auto">
-        <GuidePane selected={selected} />
+        <GuidePane
+          selected={selected}
+          seriesGuide={seriesGuide}
+          courseGuide={courseGuide}
+          apiKey={apiKey}
+          onSaveSeriesGuide={async (g) => {
+            await fetch('/api/save-guide', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ type: 'series', guide: g }),
+            })
+            setSeriesGuide(g)
+          }}
+          onSaveCourseGuide={async (g) => {
+            await fetch('/api/save-guide', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ type: 'course', guide: g }),
+            })
+            setCourseGuide(g)
+          }}
+          onSaveApiKey={setApiKey}
+        />
       </div>
 
-      {/* ── P3: 編集 / 設問 ── */}
+      {/* ── P3: 編集 ── */}
       <div className="flex-1 flex flex-col bg-white overflow-y-auto min-w-0">
-        <EditorPane selected={selected} onSelectQuestion={selectQuestion} />
+        {selected.type === 'settings' || selected.type === 'series' || selected.type === 'course' ? (
+          <div className="flex items-center justify-center h-full">
+            <p className="text-slate-300 text-xs">← ツリーからレッスンを選ぶと設問一覧が表示されます</p>
+          </div>
+        ) : selected.type === 'question' ? (
+          <QuestionEditor
+            lesson={lessons[selected.lessonIdx]}
+            lessonIdx={selected.lessonIdx}
+            question={lessons[selected.lessonIdx]?.questions[selected.qIdx]}
+            qIdx={selected.qIdx}
+            onSave={(q) => handleSaveQuestion(selected.lessonIdx, q)}
+          />
+        ) : (
+          <LessonEditor
+            lesson={lessons[selected.idx]}
+            lessonIdx={selected.idx}
+            apiKey={apiKey}
+            generating={generatingIdx === selected.idx}
+            onGenerate={() => handleGenerate(selected.idx)}
+            onApprove={() => handleApprove(selected.idx)}
+            onSelectQuestion={(li, qi) => setSelected({ type: 'question', lessonIdx: li, qIdx: qi })}
+          />
+        )}
       </div>
     </div>
   )
@@ -185,41 +260,58 @@ export default function Page() {
 
 /* ── ツリーアイテム ── */
 function TreeItem({ indent, chevron, label, tag, active, onClick }: {
-  indent: number; chevron: string; label: string; tag: string
-  active: boolean; onClick: () => void
+  indent: number; chevron: string; label: string; tag: string; active: boolean; onClick: () => void
 }) {
   return (
     <button
       onClick={onClick}
       className={[
-        'w-full flex items-center gap-1 py-1.5 rounded text-left text-xs transition-colors hover:bg-slate-700',
+        'w-full flex items-center gap-1 py-1.5 rounded text-left text-xs hover:bg-slate-700 transition-colors',
         indent === 0 ? 'px-2' : 'pl-5 pr-2',
         active ? 'bg-slate-700' : '',
       ].join(' ')}
     >
       <span className="text-slate-400 w-3 text-center text-[10px]">{chevron}</span>
-      <span className={`${indent === 0 ? 'text-slate-200 font-medium' : 'text-slate-300'} truncate flex-1`}>{label}</span>
+      <span className={`truncate flex-1 ${indent === 0 ? 'text-slate-200 font-medium' : 'text-slate-300'}`}>{label}</span>
       <span className="text-[9px] text-slate-500 shrink-0">{tag}</span>
     </button>
   )
 }
 
 /* ── P2: ガイドペイン ── */
-function GuidePane({ selected }: { selected: ActiveSelection }) {
+function GuidePane({
+  selected, seriesGuide, courseGuide, apiKey,
+  onSaveSeriesGuide, onSaveCourseGuide, onSaveApiKey,
+}: {
+  selected: ActiveSelection
+  seriesGuide: SeriesGuide
+  courseGuide: CourseGuide
+  apiKey: string
+  onSaveSeriesGuide: (g: SeriesGuide) => Promise<void>
+  onSaveCourseGuide: (g: CourseGuide) => Promise<void>
+  onSaveApiKey: (k: string) => void
+}) {
   if (selected.type === 'settings') {
     return (
       <div className="flex flex-col h-full">
         <PaneHeader badge="設定" title="APIキー" />
         <div className="flex-1 p-4 space-y-4">
-          <GuideField
-            label="Anthropic APIキー"
-            type="password"
-            placeholder="sk-ant-..."
-            hint="ファイルには保存されません。ページを閉じると消えます。"
-          />
-          <button className="w-full bg-slate-800 text-white text-xs py-2 rounded hover:bg-slate-700 transition-colors">
-            保存
-          </button>
+          <div>
+            <label className="text-[11px] font-semibold text-slate-500 block mb-1">Anthropic APIキー</label>
+            <input
+              type="password"
+              value={apiKey}
+              onChange={e => onSaveApiKey(e.target.value)}
+              placeholder="sk-ant-..."
+              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-slate-300"
+            />
+            <p className="text-[10px] text-slate-400 mt-1">ファイルには保存されません。ページを閉じると消えます。</p>
+          </div>
+          {apiKey && (
+            <div className="flex items-center gap-1.5 text-[11px] text-emerald-600">
+              <span>✓</span><span>キー設定済み</span>
+            </div>
+          )}
         </div>
       </div>
     )
@@ -227,92 +319,119 @@ function GuidePane({ selected }: { selected: ActiveSelection }) {
 
   if (selected.type === 'series') {
     return (
-      <div className="flex flex-col h-full">
-        <PaneHeader badge="シリーズガイド" title="格とTPO" />
-        <div className="flex-1 p-4 space-y-4 overflow-y-auto">
-          <GuideField label="対象者" placeholder="例）他部門からの異動者。接客経験はあるが呉服用語は未経験の方を主な対象とする。" rows={3} />
-          <GuideField label="目的" placeholder="例）呉服の「段」を理解し、お客様に正確な格の説明ができるようになる。" rows={3} />
-          <GuideField label="使う用語" placeholder="例）段・礼装・略礼服・しゃれもの…" rows={2} />
-          <GuideField label='補助語「段」の定義' placeholder="例）格の高低を表す本システム固有の言葉。" rows={2} />
-          <GuideField label="禁止する言い換え" defaultValue="フォーマル度・ドレスコード・ランク・レベル" rows={2} readOnly />
-          <GuideField label="例外" placeholder="例）振袖と留袖の上下比較は禁止…" rows={3} />
-          <GuideField label="文体" placeholder="例）「です・ます」調。新卒が知らない用語は一度だけ定義する。" rows={2} />
-        </div>
-        <div className="p-4 border-t border-stone-100 shrink-0">
-          <button className="w-full bg-slate-800 text-white text-xs py-2 rounded hover:bg-slate-700 transition-colors">保存</button>
-        </div>
-      </div>
+      <SeriesGuideForm
+        initial={seriesGuide}
+        onSave={onSaveSeriesGuide}
+      />
     )
   }
 
   if (selected.type === 'course') {
     return (
-      <div className="flex flex-col h-full">
-        <PaneHeader badge="コースガイド" title="着物の格" />
-        <div className="flex-1 p-4 space-y-4 overflow-y-auto">
-          <GuideField
-            label="各レッスンの役割"
-            defaultValue={`レッスン1：第一礼装（黒留袖・色留袖・振袖・打掛）の段と着用シーン\nレッスン2：準礼装・略礼服の段と帯合わせの原則\nレッスン3：しゃれものの範囲と格外しの考え方`}
-            rows={5}
-          />
-          <GuideField label="各回で必ず出すこと" placeholder="例）「段」を使った設問を最低2問。" rows={3} />
-          <GuideField label="後のレッスンで再登場させること" placeholder="例）第一礼装で扱った黒留袖をレッスン3に再登場させる。" rows={3} />
-          <GuideField label="含めないこと" defaultValue="話法・価格・着付けの技法" rows={2} readOnly />
-          <GuideField label="完了条件" placeholder="例）3レッスン全問合格で完了。" rows={2} />
-        </div>
-        <div className="p-4 border-t border-stone-100 shrink-0">
-          <button className="w-full bg-slate-800 text-white text-xs py-2 rounded hover:bg-slate-700 transition-colors">保存</button>
-        </div>
-      </div>
+      <CourseGuideForm
+        initial={courseGuide}
+        onSave={onSaveCourseGuide}
+      />
     )
   }
 
-  /* レッスン・設問選択時はコースガイドを参照表示 */
+  /* レッスン/設問選択中：コースガイドを参照表示 */
   return (
     <div className="flex flex-col h-full">
       <PaneHeader badge="コースガイド" title="着物の格" dimmed />
       <div className="flex-1 p-4 space-y-3 overflow-y-auto">
         <div className="space-y-3 bg-stone-50 rounded-lg p-3">
-          <FieldView label="各レッスンの役割" value={"1：第一礼装の段と着用シーン\n2：準礼装・略礼服と帯合わせ\n3：しゃれものと格外し"} />
-          <FieldView label="含めないこと" value="話法・価格・着付けの技法" />
+          <FieldView label="各レッスンの役割" value={courseGuide.lesson_roles || '（未記入）'} />
+          <FieldView label="含めないこと" value={courseGuide.exclude} />
         </div>
-        <p className="text-[10px] text-slate-400 text-center mt-2">コースを選択すると編集できます</p>
+        <p className="text-[10px] text-slate-400 text-center">コースを選択すると編集できます</p>
       </div>
     </div>
   )
 }
 
-/* ── P3: 編集ペイン ── */
-function EditorPane({ selected, onSelectQuestion }: {
-  selected: ActiveSelection
-  onSelectQuestion: (lessonIdx: number, qIdx: number) => void
-}) {
-  if (selected.type === 'settings' || selected.type === 'series' || selected.type === 'course') {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <p className="text-slate-300 text-xs text-center">
-          ← ツリーからレッスンを選ぶと設問一覧が表示されます
-        </p>
+/* ── シリーズガイドフォーム ── */
+function SeriesGuideForm({ initial, onSave }: { initial: SeriesGuide; onSave: (g: SeriesGuide) => Promise<void> }) {
+  const [draft, setDraft] = useState(initial)
+  const [saving, setSaving] = useState(false)
+  useEffect(() => { setDraft(initial) }, [initial])
+
+  const set = (k: keyof SeriesGuide) => (v: string) => setDraft(d => ({ ...d, [k]: v }))
+
+  async function handleSave() {
+    setSaving(true)
+    await onSave(draft)
+    setSaving(false)
+  }
+
+  return (
+    <div className="flex flex-col h-full">
+      <PaneHeader badge="シリーズガイド" title="格とTPO" />
+      <div className="flex-1 p-4 space-y-4 overflow-y-auto">
+        <GF label="対象者"         value={draft.target}            onChange={set('target')}            rows={3} />
+        <GF label="目的"            value={draft.purpose}           onChange={set('purpose')}           rows={3} />
+        <GF label="使う用語"        value={draft.terms}             onChange={set('terms')}             rows={2} />
+        <GF label='補助語「段」の定義' value={draft.dan_definition} onChange={set('dan_definition')}    rows={2} />
+        <GF label="禁止する言い換え" value={draft.forbidden_synonyms} readOnly rows={2} />
+        <GF label="例外"            value={draft.exceptions}        onChange={set('exceptions')}        rows={3} />
+        <GF label="文体"            value={draft.writing_style}     onChange={set('writing_style')}     rows={2} />
       </div>
-    )
-  }
-
-  const lessonIdx = selected.type === 'lesson' ? selected.idx : selected.lessonIdx
-  const lesson = LESSONS[lessonIdx]
-
-  if (selected.type === 'question') {
-    const q = lesson.questions[selected.qIdx]
-    return <QuestionEditor lesson={lesson} lessonIdx={lessonIdx} question={q} qIdx={selected.qIdx} />
-  }
-
-  return <LessonEditor lesson={lesson} lessonIdx={lessonIdx} onSelectQuestion={onSelectQuestion} />
+      <div className="p-4 border-t border-stone-100 shrink-0">
+        <button
+          onClick={handleSave} disabled={saving}
+          className="w-full bg-slate-800 text-white text-xs py-2 rounded-lg hover:bg-slate-700 disabled:opacity-50 transition-colors"
+        >
+          {saving ? '保存中…' : '保存'}
+        </button>
+      </div>
+    </div>
+  )
 }
 
-/* ── レッスン編集 ── */
-function LessonEditor({ lesson, lessonIdx, onSelectQuestion }: {
-  lesson: Lesson; lessonIdx: number
+/* ── コースガイドフォーム ── */
+function CourseGuideForm({ initial, onSave }: { initial: CourseGuide; onSave: (g: CourseGuide) => Promise<void> }) {
+  const [draft, setDraft] = useState(initial)
+  const [saving, setSaving] = useState(false)
+  useEffect(() => { setDraft(initial) }, [initial])
+
+  const set = (k: keyof CourseGuide) => (v: string) => setDraft(d => ({ ...d, [k]: v }))
+
+  async function handleSave() {
+    setSaving(true)
+    await onSave(draft)
+    setSaving(false)
+  }
+
+  return (
+    <div className="flex flex-col h-full">
+      <PaneHeader badge="コースガイド" title="着物の格" />
+      <div className="flex-1 p-4 space-y-4 overflow-y-auto">
+        <GF label="各レッスンの役割"           value={draft.lesson_roles} onChange={set('lesson_roles')} rows={5} />
+        <GF label="各回で必ず出すこと"         value={draft.must_include} onChange={set('must_include')} rows={3} />
+        <GF label="後のレッスンで再登場させること" value={draft.revisit}  onChange={set('revisit')}      rows={3} />
+        <GF label="含めないこと"               value={draft.exclude}      readOnly                        rows={2} />
+        <GF label="完了条件"                   value={draft.completion}   onChange={set('completion')}    rows={2} />
+      </div>
+      <div className="p-4 border-t border-stone-100 shrink-0">
+        <button
+          onClick={handleSave} disabled={saving}
+          className="w-full bg-slate-800 text-white text-xs py-2 rounded-lg hover:bg-slate-700 disabled:opacity-50 transition-colors"
+        >
+          {saving ? '保存中…' : '保存'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+/* ── P3: レッスン編集 ── */
+function LessonEditor({ lesson, lessonIdx, apiKey, generating, onGenerate, onApprove, onSelectQuestion }: {
+  lesson: Lesson; lessonIdx: number; apiKey: string; generating: boolean
+  onGenerate: () => void; onApprove: () => void
   onSelectQuestion: (li: number, qi: number) => void
 }) {
+  if (!lesson) return null
+
   return (
     <div className="flex flex-col h-full">
       <PaneHeader
@@ -330,25 +449,48 @@ function LessonEditor({ lesson, lessonIdx, onSelectQuestion }: {
       />
 
       <div className="flex-1 overflow-y-auto p-5 space-y-5">
+        {/* エラー表示 */}
+        {lesson.generationError && (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-3.5 text-xs text-red-600">
+            <span className="font-semibold">生成エラー: </span>{lesson.generationError}
+            <p className="text-red-400 mt-1">下書きはそのまま残っています。再生成してください。</p>
+          </div>
+        )}
+
         {/* アクションバー */}
         <div className="flex items-center gap-3 flex-wrap">
           {lesson.status === 'pending' ? (
-            <button className="bg-slate-800 text-white text-xs px-5 py-2 rounded-lg hover:bg-slate-700 transition-colors font-medium">
-              このレッスンを生成
+            <button
+              onClick={onGenerate} disabled={generating || !apiKey}
+              className="bg-slate-800 text-white text-xs px-5 py-2 rounded-lg hover:bg-slate-700 disabled:opacity-50 transition-colors font-medium"
+            >
+              {generating ? '生成中…' : 'このレッスンを生成'}
             </button>
           ) : (
             <>
-              <button className="border border-stone-300 text-slate-600 text-xs px-3 py-2 rounded-lg hover:bg-stone-50 transition-colors">
-                レッスンを再生成
+              <button
+                onClick={onGenerate} disabled={generating || !apiKey}
+                className="border border-stone-300 text-slate-600 text-xs px-3 py-2 rounded-lg hover:bg-stone-50 disabled:opacity-50 transition-colors"
+              >
+                {generating ? '生成中…' : 'レッスンを再生成'}
                 <span className="text-[10px] text-slate-400 ml-1">（確認あり）</span>
               </button>
-              <button className="border border-stone-300 text-slate-600 text-xs px-3 py-2 rounded-lg hover:bg-stone-50 transition-colors">
+              <button
+                onClick={() => window.open(`/preview/${lesson.id}`, '_blank')}
+                className="border border-stone-300 text-slate-600 text-xs px-3 py-2 rounded-lg hover:bg-stone-50 transition-colors"
+              >
                 プレビュー ▶
               </button>
             </>
           )}
-          {lesson.inspection === 'pass' && lesson.status === 'draft' && (
-            <button className="ml-auto bg-emerald-600 text-white text-xs px-5 py-2 rounded-lg hover:bg-emerald-700 transition-colors font-medium">
+          {!apiKey && (
+            <span className="text-[10px] text-amber-500">⚠ APIキー未設定（設定で入力してください）</span>
+          )}
+          {lesson.inspection.status === 'pass' && lesson.status === 'draft' && (
+            <button
+              onClick={onApprove}
+              className="ml-auto bg-emerald-600 text-white text-xs px-5 py-2 rounded-lg hover:bg-emerald-700 transition-colors font-medium"
+            >
               これでよい ✓
             </button>
           )}
@@ -357,29 +499,30 @@ function LessonEditor({ lesson, lessonIdx, onSelectQuestion }: {
         {/* 検査バッジ */}
         {lesson.status !== 'pending' && (
           <div className={`flex items-start gap-2.5 rounded-xl p-3.5 text-xs ${
-            lesson.inspection === 'pass' ? 'bg-emerald-50 border border-emerald-200' :
-            lesson.inspection === 'fail' ? 'bg-red-50 border border-red-200' :
+            lesson.inspection.status === 'pass' ? 'bg-emerald-50 border border-emerald-200' :
+            lesson.inspection.status === 'fail' ? 'bg-red-50 border border-red-200' :
             'bg-stone-50 border border-stone-200'
           }`}>
             <span className={`text-base leading-none mt-0.5 ${
-              lesson.inspection === 'pass' ? 'text-emerald-500' :
-              lesson.inspection === 'fail' ? 'text-red-500' : 'text-slate-300'
+              lesson.inspection.status === 'pass' ? 'text-emerald-500' :
+              lesson.inspection.status === 'fail' ? 'text-red-500' : 'text-slate-300'
             }`}>
-              {lesson.inspection === 'pass' ? '✓' : lesson.inspection === 'fail' ? '✗' : '–'}
+              {lesson.inspection.status === 'pass' ? '✓' :
+               lesson.inspection.status === 'fail' ? '✗' : '–'}
             </span>
             <div>
               <span className={`font-semibold ${
-                lesson.inspection === 'pass' ? 'text-emerald-700' :
-                lesson.inspection === 'fail' ? 'text-red-600' : 'text-slate-500'
+                lesson.inspection.status === 'pass' ? 'text-emerald-700' :
+                lesson.inspection.status === 'fail' ? 'text-red-600' : 'text-slate-500'
               }`}>
-                機械検査: {INSPECTION_LABEL[lesson.inspection]}
+                機械検査: {INSPECT_LABEL[lesson.inspection.status]}
               </span>
-              {lesson.inspection === 'pass' && (
-                <p className="text-emerald-600 mt-0.5">8問・各タイプ形式OK・解説あり・禁止語なし</p>
+              {lesson.inspection.status === 'pass' && (
+                <p className="text-emerald-600 mt-0.5">8問・タイプ形式OK・解説あり・禁止語なし</p>
               )}
-              {lesson.inspection === 'fail' && (
-                <p className="text-red-500 mt-0.5">設問3: 選択肢が3つしかありません（4つ必要）</p>
-              )}
+              {lesson.inspection.errors.map((e, i) => (
+                <p key={i} className="text-red-500 mt-0.5">• {e}</p>
+              ))}
             </div>
           </div>
         )}
@@ -392,8 +535,8 @@ function LessonEditor({ lesson, lessonIdx, onSelectQuestion }: {
             </h3>
             {lesson.questions.map((q, qIdx) => (
               <button
-                key={qIdx}
-                onClick={() => onSelectQuestion(0, qIdx)}
+                key={q.id}
+                onClick={() => onSelectQuestion(lessonIdx, qIdx)}
                 className="w-full text-left border border-stone-200 rounded-xl p-3.5 hover:border-slate-400 hover:bg-stone-50 transition-all group"
               >
                 <div className="flex items-start gap-2.5">
@@ -411,11 +554,18 @@ function LessonEditor({ lesson, lessonIdx, onSelectQuestion }: {
           </div>
         )}
 
-        {lesson.status === 'pending' && (
+        {lesson.status === 'pending' && !generating && (
           <div className="text-center py-16 text-slate-300 text-xs space-y-2">
             <div className="text-3xl">○</div>
             <p className="font-medium text-slate-400">未生成</p>
-            <p>前のレッスンが「これでよい」になると生成できます。</p>
+            {lessonIdx > 0 && <p>前のレッスンが「これでよい」になると生成できます。</p>}
+          </div>
+        )}
+
+        {generating && (
+          <div className="text-center py-16 text-slate-400 text-xs space-y-2">
+            <div className="text-2xl animate-spin inline-block">⟳</div>
+            <p>Claude が設問を生成中です…</p>
           </div>
         )}
       </div>
@@ -423,10 +573,23 @@ function LessonEditor({ lesson, lessonIdx, onSelectQuestion }: {
   )
 }
 
-/* ── 設問編集 ── */
-function QuestionEditor({ lesson, lessonIdx, question, qIdx }: {
+/* ── P3: 設問編集 ── */
+function QuestionEditor({ lesson, lessonIdx, question, qIdx, onSave }: {
   lesson: Lesson; lessonIdx: number; question: Question; qIdx: number
+  onSave: (q: Question) => Promise<void>
 }) {
+  const [draft, setDraft] = useState(question)
+  const [saving, setSaving]   = useState(false)
+  useEffect(() => { setDraft(question) }, [question])
+
+  if (!question) return null
+
+  async function handleSave() {
+    setSaving(true)
+    await onSave(draft)
+    setSaving(false)
+  }
+
   return (
     <div className="flex flex-col h-full">
       <PaneHeader
@@ -434,9 +597,9 @@ function QuestionEditor({ lesson, lessonIdx, question, qIdx }: {
         title={lesson.title}
         right={
           <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-medium ${
-            question.qType === 'four_choice' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'
+            draft.qType === 'four_choice' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'
           }`}>
-            {question.qType === 'four_choice' ? '四択' : '○×'}
+            {draft.qType === 'four_choice' ? '四択' : '○×'}
           </span>
         }
       />
@@ -444,52 +607,61 @@ function QuestionEditor({ lesson, lessonIdx, question, qIdx }: {
         <div>
           <label className="text-[11px] font-semibold text-slate-500 block mb-1.5">問題文</label>
           <textarea
-            defaultValue={question.text}
+            value={draft.text}
+            onChange={e => setDraft(d => ({ ...d, text: e.target.value }))}
             rows={3}
             className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300 resize-none"
           />
         </div>
 
-        {question.qType === 'four_choice' && question.choices && (
+        {draft.qType === 'four_choice' && draft.choices && (
           <div className="space-y-2">
             <label className="text-[11px] font-semibold text-slate-500 block">選択肢</label>
-            {question.choices.map((choice, i) => (
+            {draft.choices.map((choice, i) => (
               <div key={i} className="flex items-center gap-2.5">
-                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 ${
-                  i === question.correct
-                    ? 'bg-emerald-500 text-white'
-                    : 'bg-stone-200 text-slate-500'
-                }`}>
+                <button
+                  onClick={() => setDraft(d => ({ ...d, correct: i }))}
+                  className={`w-5 h-5 rounded-full text-[11px] font-bold shrink-0 transition-colors ${
+                    i === draft.correct ? 'bg-emerald-500 text-white' : 'bg-stone-200 text-slate-500 hover:bg-stone-300'
+                  }`}
+                >
                   {i + 1}
-                </span>
+                </button>
                 <input
-                  defaultValue={choice}
+                  value={choice}
+                  onChange={e => setDraft(d => {
+                    const choices = [...(d.choices ?? [])]
+                    choices[i] = e.target.value
+                    return { ...d, choices }
+                  })}
                   className="flex-1 border border-stone-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-slate-300"
                 />
-                {i === question.correct && (
+                {i === draft.correct && (
                   <span className="text-[10px] text-emerald-600 font-semibold shrink-0">正解</span>
                 )}
               </div>
             ))}
+            <p className="text-[10px] text-slate-400">番号ボタンを押すと正解を変更できます</p>
           </div>
         )}
 
-        {question.qType === 'true_false' && (
+        {draft.qType === 'true_false' && (
           <div>
             <label className="text-[11px] font-semibold text-slate-500 block mb-2">正解</label>
             <div className="flex gap-3">
-              {[true, false].map((val) => (
-                <label
+              {([true, false] as const).map(val => (
+                <button
                   key={String(val)}
-                  className={`flex items-center gap-2 px-5 py-2.5 rounded-xl border-2 cursor-pointer transition-colors ${
-                    question.answer === val
+                  onClick={() => setDraft(d => ({ ...d, answer: val }))}
+                  className={`flex items-center gap-2 px-5 py-2.5 rounded-xl border-2 transition-colors ${
+                    draft.answer === val
                       ? val ? 'border-emerald-400 bg-emerald-50' : 'border-red-400 bg-red-50'
                       : 'border-stone-200 hover:border-stone-300'
                   }`}
                 >
                   <span className="text-xl leading-none">{val ? '○' : '×'}</span>
                   <span className="text-xs font-medium">{val ? '正しい' : '誤り'}</span>
-                </label>
+                </button>
               ))}
             </div>
           </div>
@@ -498,26 +670,31 @@ function QuestionEditor({ lesson, lessonIdx, question, qIdx }: {
         <div>
           <label className="text-[11px] font-semibold text-slate-500 block mb-1.5">解説（2〜3文）</label>
           <textarea
-            defaultValue={question.explanation}
+            value={draft.explanation}
+            onChange={e => setDraft(d => ({ ...d, explanation: e.target.value }))}
             rows={3}
             className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300 resize-none"
           />
         </div>
 
         <div className="flex gap-3">
-          <button className="flex-1 bg-slate-800 text-white text-xs py-2.5 rounded-lg hover:bg-slate-700 transition-colors font-medium">
-            この設問を更新
+          <button
+            onClick={handleSave} disabled={saving}
+            className="flex-1 bg-slate-800 text-white text-xs py-2.5 rounded-lg hover:bg-slate-700 disabled:opacity-50 transition-colors font-medium"
+          >
+            {saving ? '保存中…' : 'この設問を更新'}
           </button>
-          <button className="border border-stone-300 text-slate-500 text-xs px-4 py-2.5 rounded-lg hover:bg-stone-50 transition-colors">
+          <button
+            onClick={() => setDraft(question)}
+            className="border border-stone-300 text-slate-500 text-xs px-4 py-2.5 rounded-lg hover:bg-stone-50 transition-colors"
+          >
             元に戻す
           </button>
         </div>
 
-        <div className="text-center">
-          <span className="text-[10px] text-slate-400">
-            設問 {qIdx + 1} / {LESSONS[0].questions.length}
-          </span>
-        </div>
+        <p className="text-center text-[10px] text-slate-400">
+          設問 {qIdx + 1} / {lesson.questions.length}
+        </p>
       </div>
     </div>
   )
@@ -540,31 +717,22 @@ function PaneHeader({ badge, title, right, dimmed }: {
   )
 }
 
-function GuideField({ label, placeholder, defaultValue, rows = 3, readOnly = false, hint, type = 'textarea' }: {
-  label: string; placeholder?: string; defaultValue?: string
-  rows?: number; readOnly?: boolean; hint?: string; type?: 'textarea' | 'password'
+/* ガイドフィールド（controlled） */
+function GF({ label, value, onChange, rows = 3, readOnly = false }: {
+  label: string; value: string; onChange?: (v: string) => void; rows?: number; readOnly?: boolean
 }) {
   return (
     <div>
       <label className="text-[11px] font-semibold text-slate-500 block mb-1">{label}</label>
-      {type === 'password' ? (
-        <input
-          type="password"
-          placeholder={placeholder}
-          className="w-full border border-stone-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-slate-300"
-        />
-      ) : (
-        <textarea
-          defaultValue={defaultValue}
-          placeholder={placeholder}
-          rows={rows}
-          readOnly={readOnly}
-          className={`w-full border rounded-lg px-2.5 py-2 text-xs resize-none focus:outline-none focus:ring-2 focus:ring-slate-300 ${
-            readOnly ? 'bg-stone-50 border-stone-100 text-slate-500 cursor-default' : 'border-stone-200'
-          }`}
-        />
-      )}
-      {hint && <p className="text-[10px] text-slate-400 mt-1">{hint}</p>}
+      <textarea
+        value={value}
+        onChange={e => onChange?.(e.target.value)}
+        rows={rows}
+        readOnly={readOnly}
+        className={`w-full border rounded-lg px-2.5 py-2 text-xs resize-none focus:outline-none focus:ring-2 focus:ring-slate-300 ${
+          readOnly ? 'bg-stone-50 border-stone-100 text-slate-500 cursor-default' : 'border-stone-200'
+        }`}
+      />
     </div>
   )
 }

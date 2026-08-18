@@ -1,0 +1,9 @@
+{
+  "id": "lesson-03",
+  "title": "しゃれもの",
+  "lessonIndex": 2,
+  "status": "pending",
+  "inspection": { "status": "pending", "errors": [] },
+  "generationError": null,
+  "questions": []
+}

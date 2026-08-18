@@ -1,0 +1,9 @@
+{
+  "id": "lesson-01",
+  "title": "第一礼装",
+  "lessonIndex": 0,
+  "status": "pending",
+  "inspection": { "status": "pending", "errors": [] },
+  "generationError": null,
+  "questions": []
+}
