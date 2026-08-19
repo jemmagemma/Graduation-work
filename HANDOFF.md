@@ -11,6 +11,7 @@
 
 次のチャットは「DB移行（SQLite + Drizzle ORM）の設計・実装」へ進んでください。
 その際、冒頭に `/quiz-studio-reference` スキルを参照することを推奨します。
+（スキルは `.cursor/skills/quiz-studio-reference/SKILL.md` に移動済み）
 
 ---
 
@@ -154,7 +155,7 @@ P4（AIチャット壁打ち）は **後日追加**。MVPには含まない。
 | 設問編集 | ✅ 実装済み |
 | 承認（これでよい） | ✅ 実装済み |
 | プレビュー | ✅ 実装済み |
-| Quiz Studio 参照スキル | ✅ 作成済み（`.claude/skills/quiz-studio-reference/SKILL.md`） |
+| Quiz Studio 参照スキル | ✅ 作成済み（`.cursor/skills/quiz-studio-reference/SKILL.md`） |
 | DB移行（SQLite + Drizzle） | ❌ 未着手（方針・スキーマ設計方針は決定済み） |
 | 問題作成スキル（Cursor用） | ❌ 未着手 |
 | シリーズ/コースガイドの中身 | ❌ 空欄のまま（制作者が書く） |
