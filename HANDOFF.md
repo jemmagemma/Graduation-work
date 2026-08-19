@@ -156,7 +156,7 @@ P4（AIチャット壁打ち）は **後日追加**。MVPには含まない。
 | 承認（これでよい） | ✅ 実装済み |
 | プレビュー | ✅ 実装済み |
 | Quiz Studio 参照スキル | ✅ 作成済み（`.cursor/skills/quiz-studio-reference/SKILL.md`） |
-| DB移行（SQLite + Drizzle） | ❌ 未着手（方針・スキーマ設計方針は決定済み） |
+| DB移行（SQLite + Drizzle） | ✅ 完了（`data/app.db`、`lib/db/`、`scripts/seed.ts`） |
 | 問題作成スキル（Cursor用） | ❌ 未着手 |
 | シリーズ/コースガイドの中身 | ❌ 空欄のまま（制作者が書く） |
 | スクリーンショット | ❌ まだ |
@@ -166,10 +166,7 @@ P4（AIチャット壁打ち）は **後日追加**。MVPには含まない。
 
 ## 次のチャットでやること（優先順）
 
-1. **DB移行（SQLite + Drizzle ORM）**
-   - N×N×N スキーマ設計（シリーズ / コース / レッスン / 問題）
-   - 既存 JSON（`data/kakuto-tpo/`）→ SQLite シード移行スクリプト
-   - `lib/data.ts` を Drizzle クエリに置き換え
+1. ~~**DB移行（SQLite + Drizzle ORM）**~~ ✅ 完了
 
 2. **問題作成スキルの設計・作成**（Cursor から呼び出すスキル）
    - 生成 → 機械チェック → 確認のフローをスキル化
