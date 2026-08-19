@@ -22,7 +22,7 @@ const STATUS_DOT_COLOR = {
 const INSPECT_LABEL = { pending: '未実施', pass: '合格', fail: '不合格' } as const
 
 const EMPTY_SERIES_GUIDE: SeriesGuide = {
-  target: '', purpose: '', terms: '', dan_definition: '',
+  purpose: '', terms: '', aux_concept: '',
   forbidden_synonyms: 'フォーマル度・ドレスコード・ランク・レベル',
   exceptions: '', writing_style: '',
 }
@@ -368,10 +368,9 @@ function SeriesGuideForm({ initial, onSave }: { initial: SeriesGuide; onSave: (g
     <div className="flex flex-col h-full">
       <PaneHeader badge="シリーズガイド" title="格とTPO" />
       <div className="flex-1 p-4 space-y-4 overflow-y-auto">
-        <GF label="対象者"         value={draft.target}            onChange={set('target')}            rows={3} />
         <GF label="目的"            value={draft.purpose}           onChange={set('purpose')}           rows={3} />
         <GF label="使う用語"        value={draft.terms}             onChange={set('terms')}             rows={2} />
-        <GF label='補助語「段」の定義' value={draft.dan_definition} onChange={set('dan_definition')}    rows={2} />
+        <GF label="補助概念（任意）" value={draft.aux_concept}      onChange={set('aux_concept')}       rows={2} />
         <GF label="禁止する言い換え" value={draft.forbidden_synonyms} readOnly rows={2} />
         <GF label="例外"            value={draft.exceptions}        onChange={set('exceptions')}        rows={3} />
         <GF label="文体"            value={draft.writing_style}     onChange={set('writing_style')}     rows={2} />

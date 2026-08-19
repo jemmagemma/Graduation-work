@@ -16,10 +16,9 @@ export function buildPrompt(
 指定されたJSONスキーマのみを返してください。説明文・マークダウン・コードブロックは不要です。`
 
   const user = `## シリーズガイド「格とTPO」
-対象者: ${seriesGuide.target || '（未記入）'}
 目的: ${seriesGuide.purpose || '（未記入）'}
 使う用語: ${seriesGuide.terms || '（未記入）'}
-補助語「段」の定義: ${seriesGuide.dan_definition || '（未記入）'}
+補助概念（任意）: ${seriesGuide.aux_concept || '（なし）'}
 禁止する言い換え: ${seriesGuide.forbidden_synonyms}
 例外: ${seriesGuide.exceptions || '（未記入）'}
 文体: ${seriesGuide.writing_style || '（未記入）'}
@@ -43,7 +42,7 @@ ${prior || '（なし・このレッスンが最初です）'}
 - 四択は同程度の難易度の選択肢4つ、正解は1つ
 - ○×は「〜である。」で終わる断言形
 - 各設問に必ず2〜3文の解説
-- 補助語「段」を積極的に使う
+- 補助概念が記入されている場合はその用語を積極的に使う
 - 禁止語（${seriesGuide.forbidden_synonyms}）は絶対に使わない
 
 ## 出力JSON（このJSONのみ返すこと。他のテキストは一切不要）

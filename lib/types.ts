@@ -3,10 +3,9 @@ export type InspectionStatus = 'pending' | 'pass' | 'fail'
 export type QuestionType = 'four_choice' | 'true_false'
 
 export interface SeriesGuide {
-  target: string
   purpose: string
   terms: string
-  dan_definition: string
+  aux_concept: string
   forbidden_synonyms: string
   exceptions: string
   writing_style: string

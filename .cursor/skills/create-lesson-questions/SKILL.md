@@ -30,10 +30,9 @@ disable-model-invocation: true
 
 | フィールド | 内容 |
 |-----------|------|
-| `target` | 対象者（誰に向けたドリルか） |
 | `purpose` | 目的（何を習得させるか） |
 | `terms` | 主要語句 |
-| `dan_definition` | 格の定義 |
+| `aux_concept` | 補助概念（このシリーズの中心的な分類概念・補助語とその定義。任意・空欄可） |
 | `forbidden_synonyms` | 禁止同義語（フォーマル度など） |
 
 **コースガイド**（`course.guide`）の必須フィールド:
