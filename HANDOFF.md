@@ -2,14 +2,14 @@
 
 ## このドキュメントの位置づけ
 
-前回のセッション（grill-me → アスキー確認 → モックアップ → MVP実装）の成果物です。
-**アプリは実装済み・未テスト**の状態です。
+前回のセッション（quiz-studio-referenceスキル移動 → DB移行）の成果物です。
+**アプリは実装済み・動作確認済み（DB移行含む）**の状態です。
 
 ### AIとの共同作業の範囲
-- **共同**: DB移行・スキル作成・動作確認・バグ修正・UI改善・プロンプト調整・Quiz工房のブラッシュアップ
+- **共同**: スキル作成・動作確認・バグ修正・UI改善・プロンプト調整・Quiz工房のブラッシュアップ
 - **制作者が単独で行う**: ガイドの中身を書く・画面キャプチャ・図解作成・提出
 
-次のチャットは「DB移行（SQLite + Drizzle ORM）の設計・実装」へ進んでください。
+次のチャットは「問題作成スキルの設計・作成」へ進んでください。
 その際、冒頭に `/quiz-studio-reference` スキルを参照することを推奨します。
 （スキルは `.cursor/skills/quiz-studio-reference/SKILL.md` に移動済み）
 
@@ -33,7 +33,7 @@
 - **AI**: Anthropic Claude API（`@anthropic-ai/sdk`）。モデル: `claude-opus-4-5`
 - **起動**: `pnpm dev`（ワークスペースルートで実行）→ http://localhost:3000
 - **APIキー**: 画面の設定欄（⚙）に貼るだけ。ファイルに書かない・保存されない
-- **データ**: `data/` ディレクトリの JSON ファイルで管理
+- **データ**: SQLite（`data/app.db`）+ Drizzle ORM で管理。`pnpm seed` で初期データ投入
 
 ---
 
@@ -53,19 +53,30 @@ Graduation-work/
 │   ├── layout.tsx
 │   └── page.tsx                    3ペインメイン画面
 ├── data/
-│   └── kakuto-tpo/
-│       ├── series.json             シリーズガイド（現在は空欄）
+│   ├── app.db                      SQLiteデータベース本体（git管理外）
+│   └── kakuto-tpo/                 シード元JSONファイル（参照用に残す）
+│       ├── series.json             シリーズガイド
 │       └── kimono-kaku/
-│           ├── course.json         コースガイド（現在は空欄）
+│           ├── course.json         コースガイド
 │           └── lessons/
-│               ├── lesson-01.json  第一礼装（status: pending）
+│               ├── lesson-01.json  第一礼装（status: approved）
 │               ├── lesson-02.json  準礼装・略礼服（status: pending）
 │               └── lesson-03.json  しゃれもの（status: pending）
 ├── lib/
 │   ├── types.ts                    型定義
-│   ├── data.ts                     JSON読み書きヘルパー
+│   ├── data.ts                     Drizzle クエリヘルパー（API公開関数）
 │   ├── inspect.ts                  機械検査ロジック
-│   └── prompt.ts                   Claude プロンプト構築
+│   ├── prompt.ts                   Claude プロンプト構築
+│   └── db/
+│       ├── schema.ts               Drizzle スキーマ定義（4テーブル）
+│       └── index.ts                DB接続シングルトン（better-sqlite3）
+├── scripts/
+│   └── seed.ts                     JSON→SQLite 初期データ移行（pnpm seed）
+├── .cursor/
+│   └── skills/
+│       └── quiz-studio-reference/
+│           └── SKILL.md            Quiz Studio参照スキル（プロジェクトスキル）
+├── drizzle.config.ts               Drizzle Kit 設定
 ├── HANDOFF.md                      このファイル
 └── package.json
 ```
@@ -184,7 +195,6 @@ P4（AIチャット壁打ち）は **後日追加**。MVPには含まない。
 
 ## 未決事項
 
-- DB移行時の既存JSONからのシード移行スクリプトの仕様
 - 問題作成スキルの具体的なステップ設計
 - ガイドに書く呉服の正本の中身（用語・例外の具体的テキスト）
 - 図解の提出形式・提出先（講師から指定があるはず）
