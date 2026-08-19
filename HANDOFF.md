@@ -2,17 +2,17 @@
 
 ## このドキュメントの位置づけ
 
-前回のセッション（quiz-studio-referenceスキル移動 → DB移行）の成果物です。
-**アプリは実装済み・動作確認済み（DB移行含む）**の状態です。
+前回のセッション（ガイド作成・レビュースキル群の設計・実装）の成果物です。
+**アプリは実装済み。`feature/beyond-mvp` ブランチで作業中。**
 
 ### AIとの共同作業の範囲
 - **共同**: スキル作成・動作確認・バグ修正・UI改善・プロンプト調整・Quiz工房のブラッシュアップ
 - **制作者が単独で行う**: ガイドの中身を書く・画面キャプチャ・図解作成・提出
 
-次のチャットは「レッスン2・3の問題作成」へ進んでください。
-冒頭に `create-lesson-questions` スキルを参照してください。
-（スキルは `.cursor/skills/create-lesson-questions/SKILL.md`）
-その際、アプリ（`pnpm dev`）を起動しておいてください。
+**次のチャットは「シリーズガイドの作成」から始めてください。**
+新しいチャットで「シリーズガイドを作る」と話しかけると
+`create-series-guide` スキルが自動で呼び出されます。
+アプリ（`pnpm dev`）を先に起動しておいてください。
 
 ---
 
@@ -75,8 +75,12 @@ Graduation-work/
 │   └── seed.ts                     JSON→SQLite 初期データ移行（pnpm seed）
 ├── .cursor/
 │   └── skills/
-│       └── quiz-studio-reference/
-│           └── SKILL.md            Quiz Studio参照スキル（プロジェクトスキル）
+│       ├── quiz-studio-reference/        Quiz Studio参照スキル
+│       ├── create-lesson-questions/      レッスン問題作成スキル
+│       ├── create-series-guide/          シリーズガイド作成（grill-me → Sonnet → 保存）
+│       ├── create-course-guide/          コースガイド作成（grill-me → Sonnet → 保存）
+│       ├── review-series-guide/          シリーズガイドレビュー（6観点 → 改善 → 保存）
+│       └── review-course-guide/          コースガイドレビュー（シリーズ照合 → 保存）
 ├── drizzle.config.ts               Drizzle Kit 設定
 ├── HANDOFF.md                      このファイル
 └── package.json
@@ -169,8 +173,9 @@ P4（AIチャット壁打ち）は **後日追加**。MVPには含まない。
 | プレビュー | ✅ 実装済み |
 | Quiz Studio 参照スキル | ✅ 作成済み（`.cursor/skills/quiz-studio-reference/SKILL.md`） |
 | DB移行（SQLite + Drizzle） | ✅ 完了（`data/app.db`、`lib/db/`、`scripts/seed.ts`） |
-| 問題作成スキル（Cursor用） | ✅ 作成済み（`.cursor/skills/create-lesson-questions/SKILL.md`） |
-| シリーズ/コースガイドの中身 | ❌ 空欄のまま（制作者が書く） |
+| 問題作成スキル（Cursor用） | ✅ 作成済み（`create-lesson-questions`） |
+| ガイド作成・レビュースキル群 | ✅ 作成済み（`create/review-series/course-guide` 計4本） |
+| シリーズ/コースガイドの中身 | ❌ 空欄のまま（次のチャットで `create-series-guide` を使って作成） |
 | スクリーンショット | ❌ まだ |
 | 図解（提出物） | ❌ まだ |
 
@@ -180,19 +185,25 @@ P4（AIチャット壁打ち）は **後日追加**。MVPには含まない。
 
 1. ~~**DB移行（SQLite + Drizzle ORM）**~~ ✅ 完了
 
-2. ~~**問題作成スキルの設計・作成**（Cursor から呼び出すスキル）~~  ✅ 完了
-   - ~~生成 → 機械チェック → 確認のフローをスキル化~~
-   - ~~将来アプリ内 Agents Bar に移植することを前提に設計~~
-   - スキル: `.cursor/skills/create-lesson-questions/SKILL.md`
-   - 6ステップ（起動確認・ガイド確認・生成・機械チェック・AI品質レビュー・承認）
+2. ~~**問題作成スキルの設計・作成**~~ ✅ 完了（`create-lesson-questions`）
 
-3. **UI改善**（機能追加に合わせて相談しながら進める）
+3. ~~**ガイド作成・レビュースキル群の設計・作成**~~ ✅ 完了（計4本）
 
-4. **LLM のアプリ内実装**（Agents Bar、最後に実施）
+4. **シリーズガイドの作成**（新チャットで `create-series-guide` スキルを呼ぶ）
 
-5. **以降は制作者が単独で実施**
-   - 画面キャプチャ
-   - 図解作成・提出
+5. **コースガイドの作成**（`create-course-guide` スキルを呼ぶ）
+
+6. 必要なら **ガイドのレビュー**（`review-series/course-guide`）
+
+7. **レッスン2・3の生成**（`create-lesson-questions` スキルを呼ぶ）
+
+8. **UI改善**（機能追加に合わせて相談しながら進める）
+
+9. **LLM のアプリ内実装**（Agents Bar、最後に実施）
+
+10. **以降は制作者が単独で実施**
+    - 画面キャプチャ
+    - 図解作成・提出
 
 ---
 
@@ -211,6 +222,8 @@ P4（AIチャット壁打ち）は **後日追加**。MVPには含まない。
 - **スクリーンショット時は DevTools を閉じる**（ネットワークタブにキーが見える）
 - **モデル名**: `claude-opus-4-5`（`lib/prompt.ts` の `MODEL` 定数で変更可）
 - **レッスン2の生成ロック**: レッスン1が「これでよい」になるまで生成ボタンは押せない
+- **現在のブランチ**: `feature/beyond-mvp`（提出時は `git checkout main` で戻る）
+- **DBはgit管理外**: `data/app.db` はブランチをまたいで共有される（コンテンツはどのブランチでも同じ）
 
 ---
 
