@@ -1,0 +1,9 @@
+{
+  "id": "aida-03",
+  "title": "色無地",
+  "lessonIndex": 2,
+  "status": "pending",
+  "inspection": { "status": "pending", "errors": [] },
+  "generationError": null,
+  "questions": []
+}

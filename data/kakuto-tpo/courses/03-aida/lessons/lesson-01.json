@@ -1,0 +1,9 @@
+{
+  "id": "aida-01",
+  "title": "訪問着",
+  "lessonIndex": 0,
+  "status": "pending",
+  "inspection": { "status": "pending", "errors": [] },
+  "generationError": null,
+  "questions": []
+}

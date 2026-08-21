@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm'
 import { db } from './db'
 import { series, courses, lessons, questions } from './db/schema'
-import type { SeriesGuide, CourseGuide, Lesson, DrillData, Question } from './types'
+import type { SeriesGuide, CourseGuide, Lesson, DrillData, Question, Course } from './types'
 
 // ── 内部変換ヘルパー ──────────────────────────────────────────
 
@@ -33,12 +33,12 @@ function rowToLesson(
   }
 }
 
-// ── Public API（既存の呼び出し元と同じシグネチャ）─────────────
+// ── Public API ─────────────────────────────────────────────
 
 export function loadAll(): DrillData {
   const [ser] = db.select().from(series).all()
-  const [crs] = db.select().from(courses).where(eq(courses.seriesId, ser.id)).all()
-  const lessonRows = db.select().from(lessons).where(eq(lessons.courseId, crs.id)).all()
+  const courseRows = db.select().from(courses).where(eq(courses.seriesId, ser.id)).all()
+  const lessonRows = db.select().from(lessons).all()
   const questionRows = db.select().from(questions).all()
 
   const questionsByLesson = new Map<string, (typeof questions.$inferSelect)[]>()
@@ -48,20 +48,29 @@ export function loadAll(): DrillData {
     questionsByLesson.set(q.lessonId, arr)
   }
 
+  const lessonsByCourse = new Map<string, Lesson[]>()
+  for (const row of lessonRows) {
+    const arr = lessonsByCourse.get(row.courseId) ?? []
+    arr.push(rowToLesson(row, questionsByLesson.get(row.id) ?? []))
+    lessonsByCourse.set(row.courseId, arr)
+  }
+
   return {
     series: {
       id:    ser.id,
       title: ser.title,
       guide: JSON.parse(ser.guide) as SeriesGuide,
     },
-    course: {
-      id:    crs.id,
-      title: crs.title,
-      guide: JSON.parse(crs.guide) as CourseGuide,
-    },
-    lessons: lessonRows
-      .sort((a, b) => a.lessonIndex - b.lessonIndex)
-      .map(row => rowToLesson(row, questionsByLesson.get(row.id) ?? [])),
+    courses: courseRows
+      .sort((a, b) => a.courseIndex - b.courseIndex)
+      .map<Course>(row => ({
+        id:          row.id,
+        title:       row.title,
+        courseIndex: row.courseIndex,
+        guide:       JSON.parse(row.guide) as CourseGuide,
+        lessons:     (lessonsByCourse.get(row.id) ?? [])
+          .sort((a, b) => a.lessonIndex - b.lessonIndex),
+      })),
   }
 }
 
@@ -73,11 +82,10 @@ export function saveSeriesGuide(guide: SeriesGuide): void {
     .run()
 }
 
-export function saveCourseGuide(guide: CourseGuide): void {
-  const [crs] = db.select().from(courses).all()
+export function saveCourseGuide(courseId: string, guide: CourseGuide): void {
   db.update(courses)
     .set({ guide: JSON.stringify(guide) })
-    .where(eq(courses.id, crs.id))
+    .where(eq(courses.id, courseId))
     .run()
 }
 
@@ -86,6 +94,17 @@ export function loadLesson(id: string): Lesson {
   if (!row) throw new Error(`レッスン ${id} が見つかりません`)
   const qs = db.select().from(questions).where(eq(questions.lessonId, id)).all()
   return rowToLesson(row, qs)
+}
+
+export function findLesson(
+  data: DrillData,
+  lessonId: string,
+): { course: Course; lesson: Lesson } | null {
+  for (const course of data.courses) {
+    const lesson = course.lessons.find(l => l.id === lessonId)
+    if (lesson) return { course, lesson }
+  }
+  return null
 }
 
 export function saveLesson(lesson: Lesson): void {

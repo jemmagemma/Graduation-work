@@ -1,6 +1,9 @@
 import type { Question, Lesson, InspectionResult } from './types'
 
-const FORBIDDEN = ['フォーマル度', 'ドレスコード', 'ランク', 'レベル']
+const FORBIDDEN = [
+  'フォーマル度', 'ドレスコード', 'ランク', 'レベル',
+  '格式', 'ステータス', '燕尾服', 'タキシード', 'カクテルドレス',
+]
 
 function hasForbidden(text: string): string[] {
   return FORBIDDEN.filter(w => text.includes(w))

@@ -6,12 +6,12 @@ export async function POST(req: Request) {
   try {
     const body = await req.json() as
       | { type: 'series'; guide: SeriesGuide }
-      | { type: 'course'; guide: CourseGuide }
+      | { type: 'course'; courseId: string; guide: CourseGuide }
 
     if (body.type === 'series') {
       saveSeriesGuide(body.guide)
     } else {
-      saveCourseGuide(body.guide)
+      saveCourseGuide(body.courseId, body.guide)
     }
     return NextResponse.json({ ok: true })
   } catch (e) {

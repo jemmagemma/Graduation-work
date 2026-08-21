@@ -16,7 +16,8 @@ APIから現在のコースガイドとシリーズガイドを取得し、照�
 
 - 接続失敗 → `pnpm dev` の起動を促して停止する。
 - `series.guide` が空 → 先に `create-series-guide` を実行するよう促して停止する。
-- `course.guide` が空 → 先に `create-course-guide` を実行するよう促して停止する。
+- 対象コースの `guide` が空 → 先に `create-course-guide` を実行するよう促して停止する。
+- コースは `data.courses` 配列。レビュー対象のコースを確認してから進む。
 
 ---
 
@@ -62,7 +63,7 @@ FAIL 項目がある場合：
 POST http://localhost:3000/api/save-guide
 Content-Type: application/json
 
-{ "type": "course", "guide": { <改善済みの全フィールド> } }
+{ "type": "course", "courseId": "<対象コースのid>", "guide": { <改善済みの全フィールド> } }
 ```
 
 保存完了後：

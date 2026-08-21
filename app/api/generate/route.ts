@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
-import { loadAll, saveLesson } from '@/lib/data'
+import { loadAll, saveLesson, findLesson } from '@/lib/data'
 import { runInspection } from '@/lib/inspect'
 import { buildPrompt } from '@/lib/prompt'
 import type { Lesson, Question } from '@/lib/types'
@@ -15,15 +15,17 @@ export async function POST(req: Request) {
   }
 
   const data = loadAll()
-  const lesson = data.lessons.find(l => l.id === lessonId)
-  if (!lesson) {
+  const found = findLesson(data, lessonId)
+  if (!found) {
     return NextResponse.json({ error: `レッスン ${lessonId} が見つかりません` }, { status: 404 })
   }
+  const { course, lesson } = found
 
-  const approvedLessons = data.lessons.filter(l => l.status === 'approved')
+  const approvedLessons = course.lessons.filter(l => l.status === 'approved')
   const { system, user } = buildPrompt(
     data.series.guide,
-    data.course.guide,
+    course.title,
+    course.guide,
     lesson.title,
     lesson.lessonIndex,
     approvedLessons,

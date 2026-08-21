@@ -1,14 +1,14 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import type { DrillData, Lesson, Question, SeriesGuide, CourseGuide } from '@/lib/types'
+import type { DrillData, Lesson, Question, SeriesGuide, CourseGuide, Course } from '@/lib/types'
 
 /* ── UI 選択状態 ───────────────────────────────────────────── */
 type ActiveSelection =
   | { type: 'series' }
-  | { type: 'course' }
-  | { type: 'lesson'; idx: number }
-  | { type: 'question'; lessonIdx: number; qIdx: number }
+  | { type: 'course'; courseIdx: number }
+  | { type: 'lesson'; courseIdx: number; lessonIdx: number }
+  | { type: 'question'; courseIdx: number; lessonIdx: number; qIdx: number }
   | { type: 'settings' }
 
 /* ── 定数 ────────────────────────────────────────────────── */
@@ -23,26 +23,22 @@ const INSPECT_LABEL = { pending: '未実施', pass: '合格', fail: '不合格' 
 
 const EMPTY_SERIES_GUIDE: SeriesGuide = {
   purpose: '', terms: '', aux_concept: '',
-  forbidden_synonyms: 'フォーマル度・ドレスコード・ランク・レベル',
+  forbidden_synonyms: 'フォーマル度・ドレスコード・ランク・レベル・格式・ステータス・燕尾服・タキシード・カクテルドレス',
   exceptions: '', writing_style: '',
-}
-const EMPTY_COURSE_GUIDE: CourseGuide = {
-  lesson_roles: '', must_include: '', revisit: '',
-  exclude: '話法・価格・着付けの技法', completion: '',
 }
 
 /* ── メインページ ─────────────────────────────────────────── */
 export default function Page() {
   const [seriesGuide, setSeriesGuide] = useState<SeriesGuide>(EMPTY_SERIES_GUIDE)
-  const [courseGuide, setCourseGuide] = useState<CourseGuide>(EMPTY_COURSE_GUIDE)
-  const [lessons, setLessons]         = useState<Lesson[]>([])
+  const [seriesTitle, setSeriesTitle] = useState('格とTPO')
+  const [courses, setCourses]         = useState<Course[]>([])
   const [apiKey, setApiKey]           = useState('')
   const [initLoading, setInitLoading] = useState(true)
-  const [generatingIdx, setGeneratingIdx] = useState<number | null>(null)
+  const [generatingId, setGeneratingId] = useState<string | null>(null)
 
   const [selected, setSelected]   = useState<ActiveSelection>({ type: 'series' })
   const [seriesOpen, setSeriesOpen] = useState(true)
-  const [courseOpen, setCourseOpen] = useState(true)
+  const [openCourseIdx, setOpenCourseIdx] = useState<number | null>(0)
   const [openLesson, setOpenLesson] = useState<number | null>(null)
 
   /* 初期データ読み込み */
@@ -51,38 +47,39 @@ export default function Page() {
       .then(r => r.json())
       .then((d: DrillData) => {
         setSeriesGuide(d.series.guide)
-        setCourseGuide(d.course.guide)
-        setLessons(d.lessons)
+        setSeriesTitle(d.series.title)
+        setCourses(d.courses)
       })
       .finally(() => setInitLoading(false))
   }, [])
 
-  /* レッスン状態の単件更新 */
   const updateLesson = useCallback((updated: Lesson) => {
-    setLessons(prev => prev.map(l => l.id === updated.id ? updated : l))
+    setCourses(prev => prev.map(c => ({
+      ...c,
+      lessons: c.lessons.map(l => l.id === updated.id ? updated : l),
+    })))
   }, [])
 
-  /* 生成 */
-  const handleGenerate = useCallback(async (lessonIdx: number) => {
-    const lesson = lessons[lessonIdx]
+  const handleGenerate = useCallback(async (courseIdx: number, lessonIdx: number) => {
+    const lesson = courses[courseIdx]?.lessons[lessonIdx]
     if (!lesson) return
     if (lesson.status === 'draft' && !window.confirm('現在の下書きを削除して再生成しますか？')) return
 
-    setGeneratingIdx(lessonIdx)
+    setGeneratingId(lesson.id)
     const res = await fetch('/api/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ lessonId: lesson.id, apiKey }),
     })
     const data = await res.json() as Lesson & { error?: string }
-    setGeneratingIdx(null)
+    setGeneratingId(null)
     updateLesson(data)
-    setSelected({ type: 'lesson', idx: lessonIdx })
-  }, [lessons, apiKey, updateLesson])
+    setSelected({ type: 'lesson', courseIdx, lessonIdx })
+  }, [courses, apiKey, updateLesson])
 
-  /* 承認 */
-  const handleApprove = useCallback(async (lessonIdx: number) => {
-    const lesson = lessons[lessonIdx]
+  const handleApprove = useCallback(async (courseIdx: number, lessonIdx: number) => {
+    const lesson = courses[courseIdx]?.lessons[lessonIdx]
+    if (!lesson) return
     const res = await fetch('/api/approve-lesson', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -90,11 +87,11 @@ export default function Page() {
     })
     const data = await res.json() as Lesson
     updateLesson(data)
-  }, [lessons, updateLesson])
+  }, [courses, updateLesson])
 
-  /* 設問保存 */
-  const handleSaveQuestion = useCallback(async (lessonIdx: number, updatedQ: Question) => {
-    const lesson = lessons[lessonIdx]
+  const handleSaveQuestion = useCallback(async (courseIdx: number, lessonIdx: number, updatedQ: Question) => {
+    const lesson = courses[courseIdx]?.lessons[lessonIdx]
+    if (!lesson) return
     const questions = lesson.questions.map(q => q.id === updatedQ.id ? updatedQ : q)
     const res = await fetch('/api/save-lesson', {
       method: 'POST',
@@ -103,7 +100,7 @@ export default function Page() {
     })
     const data = await res.json() as Lesson
     updateLesson(data)
-  }, [lessons, updateLesson])
+  }, [courses, updateLesson])
 
   if (initLoading) {
     return (
@@ -113,78 +110,99 @@ export default function Page() {
     )
   }
 
-  const lessonIdx = selected.type === 'lesson' ? selected.idx
+  const selectedCourseIdx =
+    selected.type === 'course' ? selected.courseIdx
+    : selected.type === 'lesson' || selected.type === 'question' ? selected.courseIdx
+    : null
+  const selectedLessonIdx =
+    selected.type === 'lesson' ? selected.lessonIdx
     : selected.type === 'question' ? selected.lessonIdx
     : null
+  const selectedCourse = selectedCourseIdx !== null ? courses[selectedCourseIdx] : undefined
+  const selectedLesson = selectedCourse && selectedLessonIdx !== null
+    ? selectedCourse.lessons[selectedLessonIdx]
+    : undefined
 
   return (
     <div className="flex h-screen overflow-hidden bg-stone-100 text-sm font-sans">
 
       {/* ── P1: ツリー ── */}
-      <aside className="w-52 shrink-0 bg-slate-800 text-slate-200 flex flex-col overflow-y-auto">
+      <aside className="w-60 shrink-0 bg-slate-800 text-slate-200 flex flex-col overflow-y-auto">
         <div className="px-4 py-3 border-b border-slate-700 shrink-0">
-          <div className="text-[10px] text-slate-400 tracking-widest uppercase">呉服販売員ドリル</div>
-          <div className="text-base font-bold text-white leading-tight mt-0.5">Quiz 工房</div>
+          <div className="text-[11px] font-bold text-white leading-tight">令和きもの販売員ドリル</div>
+          <div className="text-[10px] text-slate-400 mt-0.5">{seriesTitle}</div>
+          <div className="text-[9px] text-slate-600 mt-1">呉服Quiz工房</div>
         </div>
 
         <nav className="flex-1 p-2 text-xs">
           <TreeItem
-            indent={0} chevron={seriesOpen ? '▼' : '▶'} label="格とTPO" tag="シリーズ"
+            indent={0} chevron={seriesOpen ? '▼' : '▶'} label={seriesTitle} tag="シリーズ"
             active={selected.type === 'series'}
             onClick={() => { setSeriesOpen(v => !v); setSelected({ type: 'series' }) }}
           />
-          {seriesOpen && (
-            <>
-              <TreeItem
-                indent={1} chevron={courseOpen ? '▼' : '▶'} label="着物の格" tag="コース"
-                active={selected.type === 'course'}
-                onClick={() => { setCourseOpen(v => !v); setSelected({ type: 'course' }) }}
-              />
-              {courseOpen && lessons.map((lesson, idx) => {
-                const locked = idx > 0 && lessons[idx - 1].status !== 'approved'
-                return (
-                  <div key={lesson.id}>
-                    <button
-                      disabled={locked}
-                      onClick={() => {
-                        setOpenLesson(openLesson === idx ? null : idx)
-                        setSelected({ type: 'lesson', idx })
-                      }}
-                      className={[
-                        'w-full flex items-center gap-1.5 pl-8 pr-2 py-1.5 rounded text-left transition-colors',
-                        locked ? 'opacity-35 cursor-not-allowed' : 'hover:bg-slate-700',
-                        lessonIdx === idx ? 'bg-slate-700' : '',
-                      ].join(' ')}
-                    >
-                      <span className={`text-[11px] w-3 text-center ${STATUS_DOT_COLOR[lesson.status]}`}>
-                        {STATUS_DOT[lesson.status]}
-                      </span>
-                      <span className="truncate text-slate-300">{lesson.title}</span>
-                    </button>
-
-                    {openLesson === idx && !locked && lesson.questions.map((q, qIdx) => (
+          {seriesOpen && courses.map((course, courseIdx) => {
+            const isOpen = openCourseIdx === courseIdx
+            return (
+              <div key={course.id}>
+                <TreeItem
+                  indent={1}
+                  chevron={isOpen ? '▼' : '▶'}
+                  label={course.title}
+                  tag="コース"
+                  active={selected.type === 'course' && selected.courseIdx === courseIdx}
+                  onClick={() => {
+                    setOpenCourseIdx(isOpen ? null : courseIdx)
+                    setSelected({ type: 'course', courseIdx })
+                  }}
+                />
+                {isOpen && course.lessons.map((lesson, lessonIdx) => {
+                  const locked = lessonIdx > 0 && course.lessons[lessonIdx - 1].status !== 'approved'
+                  const lessonActive = selectedLessonIdx === lessonIdx && selectedCourseIdx === courseIdx
+                  return (
+                    <div key={lesson.id}>
                       <button
-                        key={q.id}
-                        onClick={() => setSelected({ type: 'question', lessonIdx: idx, qIdx })}
+                        disabled={locked}
+                        onClick={() => {
+                          setOpenLesson(openLesson === lessonIdx && selectedCourseIdx === courseIdx ? null : lessonIdx)
+                          setSelected({ type: 'lesson', courseIdx, lessonIdx })
+                        }}
                         className={[
-                          'w-full flex items-center gap-1.5 pl-12 pr-2 py-1 rounded text-left hover:bg-slate-700',
-                          selected.type === 'question' && selected.lessonIdx === idx && selected.qIdx === qIdx
-                            ? 'bg-slate-700' : '',
+                          'w-full flex items-center gap-1.5 pl-8 pr-2 py-1.5 rounded text-left transition-colors',
+                          locked ? 'opacity-35 cursor-not-allowed' : 'hover:bg-slate-700',
+                          lessonActive && selected.type !== 'question' ? 'bg-slate-700' : '',
                         ].join(' ')}
                       >
-                        <span className="text-[10px] text-slate-500 w-8">設問{q.id}</span>
-                        <span className={`text-[9px] px-1 rounded ${
-                          q.qType === 'four_choice' ? 'bg-blue-900 text-blue-300' : 'bg-purple-900 text-purple-300'
-                        }`}>
-                          {q.qType === 'four_choice' ? '四択' : '○×'}
+                        <span className={`text-[11px] w-3 text-center ${STATUS_DOT_COLOR[lesson.status]}`}>
+                          {STATUS_DOT[lesson.status]}
                         </span>
+                        <span className="truncate text-slate-300">{lesson.title}</span>
                       </button>
-                    ))}
-                  </div>
-                )
-              })}
-            </>
-          )}
+
+                      {openLesson === lessonIdx && selectedCourseIdx === courseIdx && !locked && lesson.questions.map((q, qIdx) => (
+                        <button
+                          key={q.id}
+                          onClick={() => setSelected({ type: 'question', courseIdx, lessonIdx, qIdx })}
+                          className={[
+                            'w-full flex items-center gap-1.5 pl-12 pr-2 py-1 rounded text-left hover:bg-slate-700',
+                            selected.type === 'question' && selected.courseIdx === courseIdx
+                              && selected.lessonIdx === lessonIdx && selected.qIdx === qIdx
+                              ? 'bg-slate-700' : '',
+                          ].join(' ')}
+                        >
+                          <span className="text-[10px] text-slate-500 w-8">設問{q.id}</span>
+                          <span className={`text-[9px] px-1 rounded ${
+                            q.qType === 'four_choice' ? 'bg-blue-900 text-blue-300' : 'bg-purple-900 text-purple-300'
+                          }`}>
+                            {q.qType === 'four_choice' ? '四択' : '○×'}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )
+                })}
+              </div>
+            )
+          })}
         </nav>
 
         <div className="border-t border-slate-700 p-2 shrink-0">
@@ -205,8 +223,9 @@ export default function Page() {
       <div className="w-72 shrink-0 border-r border-stone-200 flex flex-col bg-white overflow-y-auto">
         <GuidePane
           selected={selected}
+          seriesTitle={seriesTitle}
           seriesGuide={seriesGuide}
-          courseGuide={courseGuide}
+          courses={courses}
           apiKey={apiKey}
           onSaveSeriesGuide={async (g) => {
             await fetch('/api/save-guide', {
@@ -216,13 +235,13 @@ export default function Page() {
             })
             setSeriesGuide(g)
           }}
-          onSaveCourseGuide={async (g) => {
+          onSaveCourseGuide={async (courseId, g) => {
             await fetch('/api/save-guide', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ type: 'course', guide: g }),
+              body: JSON.stringify({ type: 'course', courseId, guide: g }),
             })
-            setCourseGuide(g)
+            setCourses(prev => prev.map(c => c.id === courseId ? { ...c, guide: g } : c))
           }}
           onSaveApiKey={setApiKey}
         />
@@ -234,24 +253,33 @@ export default function Page() {
           <div className="flex items-center justify-center h-full">
             <p className="text-slate-300 text-xs">← ツリーからレッスンを選ぶと設問一覧が表示されます</p>
           </div>
-        ) : selected.type === 'question' ? (
+        ) : selected.type === 'question' && selectedLesson ? (
           <QuestionEditor
-            lesson={lessons[selected.lessonIdx]}
+            lesson={selectedLesson}
             lessonIdx={selected.lessonIdx}
-            question={lessons[selected.lessonIdx]?.questions[selected.qIdx]}
+            question={selectedLesson.questions[selected.qIdx]}
             qIdx={selected.qIdx}
-            onSave={(q) => handleSaveQuestion(selected.lessonIdx, q)}
+            onSave={(q) => handleSaveQuestion(selected.courseIdx, selected.lessonIdx, q)}
+          />
+        ) : selected.type === 'lesson' && selectedLesson ? (
+          <LessonEditor
+            lesson={selectedLesson}
+            lessonIdx={selected.lessonIdx}
+            apiKey={apiKey}
+            generating={generatingId === selectedLesson.id}
+            onGenerate={() => handleGenerate(selected.courseIdx, selected.lessonIdx)}
+            onApprove={() => handleApprove(selected.courseIdx, selected.lessonIdx)}
+            onSelectQuestion={(li, qi) => setSelected({
+              type: 'question',
+              courseIdx: selected.courseIdx,
+              lessonIdx: li,
+              qIdx: qi,
+            })}
           />
         ) : (
-          <LessonEditor
-            lesson={lessons[selected.idx]}
-            lessonIdx={selected.idx}
-            apiKey={apiKey}
-            generating={generatingIdx === selected.idx}
-            onGenerate={() => handleGenerate(selected.idx)}
-            onApprove={() => handleApprove(selected.idx)}
-            onSelectQuestion={(li, qi) => setSelected({ type: 'question', lessonIdx: li, qIdx: qi })}
-          />
+          <div className="flex items-center justify-center h-full">
+            <p className="text-slate-300 text-xs">← ツリーからレッスンを選ぶと設問一覧が表示されます</p>
+          </div>
         )}
       </div>
     </div>
@@ -280,15 +308,16 @@ function TreeItem({ indent, chevron, label, tag, active, onClick }: {
 
 /* ── P2: ガイドペイン ── */
 function GuidePane({
-  selected, seriesGuide, courseGuide, apiKey,
+  selected, seriesTitle, seriesGuide, courses, apiKey,
   onSaveSeriesGuide, onSaveCourseGuide, onSaveApiKey,
 }: {
   selected: ActiveSelection
+  seriesTitle: string
   seriesGuide: SeriesGuide
-  courseGuide: CourseGuide
+  courses: Course[]
   apiKey: string
   onSaveSeriesGuide: (g: SeriesGuide) => Promise<void>
-  onSaveCourseGuide: (g: CourseGuide) => Promise<void>
+  onSaveCourseGuide: (courseId: string, g: CourseGuide) => Promise<void>
   onSaveApiKey: (k: string) => void
 }) {
   if (selected.type === 'settings') {
@@ -320,6 +349,7 @@ function GuidePane({
   if (selected.type === 'series') {
     return (
       <SeriesGuideForm
+        title={seriesTitle}
         initial={seriesGuide}
         onSave={onSaveSeriesGuide}
       />
@@ -327,22 +357,31 @@ function GuidePane({
   }
 
   if (selected.type === 'course') {
+    const course = courses[selected.courseIdx]
+    if (!course) return null
     return (
       <CourseGuideForm
-        initial={courseGuide}
-        onSave={onSaveCourseGuide}
+        key={course.id}
+        title={course.title}
+        initial={course.guide}
+        onSave={(g) => onSaveCourseGuide(course.id, g)}
       />
     )
   }
 
+  const refCourse =
+    (selected.type === 'lesson' || selected.type === 'question')
+      ? courses[selected.courseIdx]
+      : undefined
+
   /* レッスン/設問選択中：コースガイドを参照表示 */
   return (
     <div className="flex flex-col h-full">
-      <PaneHeader badge="コースガイド" title="着物の格" dimmed />
+      <PaneHeader badge="コースガイド" title={refCourse?.title ?? ''} dimmed />
       <div className="flex-1 p-4 space-y-3 overflow-y-auto">
         <div className="space-y-3 bg-stone-50 rounded-lg p-3">
-          <FieldView label="各レッスンの役割" value={courseGuide.lesson_roles || '（未記入）'} />
-          <FieldView label="含めないこと" value={courseGuide.exclude} />
+          <FieldView label="各レッスンの役割" value={refCourse?.guide.lesson_roles || '（未記入）'} />
+          <FieldView label="含めないこと" value={refCourse?.guide.exclude || ''} />
         </div>
         <p className="text-[10px] text-slate-400 text-center">コースを選択すると編集できます</p>
       </div>
@@ -351,7 +390,7 @@ function GuidePane({
 }
 
 /* ── シリーズガイドフォーム ── */
-function SeriesGuideForm({ initial, onSave }: { initial: SeriesGuide; onSave: (g: SeriesGuide) => Promise<void> }) {
+function SeriesGuideForm({ title, initial, onSave }: { title: string; initial: SeriesGuide; onSave: (g: SeriesGuide) => Promise<void> }) {
   const [draft, setDraft] = useState(initial)
   const [saving, setSaving] = useState(false)
   useEffect(() => { setDraft(initial) }, [initial])
@@ -366,14 +405,14 @@ function SeriesGuideForm({ initial, onSave }: { initial: SeriesGuide; onSave: (g
 
   return (
     <div className="flex flex-col h-full">
-      <PaneHeader badge="シリーズガイド" title="格とTPO" />
+      <PaneHeader badge="シリーズガイド" title={title} />
       <div className="flex-1 p-4 space-y-4 overflow-y-auto">
-        <GF label="目的"            value={draft.purpose}           onChange={set('purpose')}           rows={3} />
-        <GF label="使う用語"        value={draft.terms}             onChange={set('terms')}             rows={2} />
-        <GF label="補助概念（任意）" value={draft.aux_concept}      onChange={set('aux_concept')}       rows={2} />
+        <GF label="目的"            value={draft.purpose}           onChange={set('purpose')}           rows={8} />
+        <GF label="使う用語"        value={draft.terms}             onChange={set('terms')}             rows={3} />
+        <GF label="補助概念（任意）" value={draft.aux_concept}      onChange={set('aux_concept')}       rows={5} />
         <GF label="禁止する言い換え" value={draft.forbidden_synonyms} readOnly rows={2} />
-        <GF label="例外"            value={draft.exceptions}        onChange={set('exceptions')}        rows={3} />
-        <GF label="文体"            value={draft.writing_style}     onChange={set('writing_style')}     rows={2} />
+        <GF label="例外"            value={draft.exceptions}        onChange={set('exceptions')}        rows={8} />
+        <GF label="文体"            value={draft.writing_style}     onChange={set('writing_style')}     rows={5} />
       </div>
       <div className="p-4 border-t border-stone-100 shrink-0">
         <button
@@ -388,7 +427,7 @@ function SeriesGuideForm({ initial, onSave }: { initial: SeriesGuide; onSave: (g
 }
 
 /* ── コースガイドフォーム ── */
-function CourseGuideForm({ initial, onSave }: { initial: CourseGuide; onSave: (g: CourseGuide) => Promise<void> }) {
+function CourseGuideForm({ title, initial, onSave }: { title: string; initial: CourseGuide; onSave: (g: CourseGuide) => Promise<void> }) {
   const [draft, setDraft] = useState(initial)
   const [saving, setSaving] = useState(false)
   useEffect(() => { setDraft(initial) }, [initial])
@@ -403,7 +442,7 @@ function CourseGuideForm({ initial, onSave }: { initial: CourseGuide; onSave: (g
 
   return (
     <div className="flex flex-col h-full">
-      <PaneHeader badge="コースガイド" title="着物の格" />
+      <PaneHeader badge="コースガイド" title={title} />
       <div className="flex-1 p-4 space-y-4 overflow-y-auto">
         <GF label="各レッスンの役割"           value={draft.lesson_roles} onChange={set('lesson_roles')} rows={5} />
         <GF label="各回で必ず出すこと"         value={draft.must_include} onChange={set('must_include')} rows={3} />

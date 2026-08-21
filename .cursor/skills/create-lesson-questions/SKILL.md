@@ -16,9 +16,9 @@ disable-model-invocation: true
 `GET http://localhost:3000/api/data` を実行してデータを取得する。
 
 - **接続失敗**: ユーザーに `pnpm dev` の起動を促して停止する。
-- **接続成功**: レスポンスの `lessons` 配列を確認する。
-  - `status: "pending"` のレッスンのうち `lessonIndex` が最小のものを対象に選ぶ。
-  - その1つ前のレッスン（`lessonIndex - 1`）が `status: "approved"` であることを確認する（生成ロック解除条件）。レッスン1の場合はこのチェックをスキップ。
+- **接続成功**: レスポンスの `courses[].lessons` を確認する。
+  - 対象コースを確認したうえで、そのコース内で `status: "pending"` かつ `lessonIndex` が最小のレッスンを選ぶ。
+  - 同じコースの1つ前のレッスン（`lessonIndex - 1`）が `status: "approved"` であることを確認する（生成ロック解除条件）。コース内レッスン1の場合はこのチェックをスキップ。
 
 ---
 
@@ -35,7 +35,7 @@ disable-model-invocation: true
 | `aux_concept` | 補助概念（このシリーズの中心的な分類概念・補助語とその定義。任意・空欄可） |
 | `forbidden_synonyms` | 禁止同義語（フォーマル度など） |
 
-**コースガイド**（`course.guide`）の必須フィールド:
+**コースガイド**（対象コースの `guide`）の必須フィールド:
 
 | フィールド | 内容 |
 |-----------|------|
@@ -58,7 +58,7 @@ disable-model-invocation: true
 4. 「このレッスンを生成」ボタンを押す
 
 生成完了後（UIに設問が表示されたら）、ユーザーに知らせてもらうかページ再読み込みを待つ。
-再度 `GET /api/data` を取得して `lessons[対象].status === "draft"` を確認してから次へ進む。
+再度 `GET /api/data` を取得して、対象レッスンの `status === "draft"` を確認してから次へ進む。
 
 ---
 
@@ -98,7 +98,7 @@ disable-model-invocation: true
 
 ### レビュー実施
 
-`series.guide` と `course.guide` の内容を参照しながら、各設問を以下の観点で評価する。
+`series.guide` と対象コースの `guide` の内容を参照しながら、各設問を以下の観点で評価する。
 
 ### 評価観点
 

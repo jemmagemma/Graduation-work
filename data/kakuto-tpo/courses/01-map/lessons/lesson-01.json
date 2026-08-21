@@ -1,0 +1,9 @@
+{
+  "id": "map-01",
+  "title": "なぜ格があるか",
+  "lessonIndex": 0,
+  "status": "pending",
+  "inspection": { "status": "pending", "errors": [] },
+  "generationError": null,
+  "questions": []
+}

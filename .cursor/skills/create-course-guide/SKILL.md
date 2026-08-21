@@ -17,7 +17,7 @@ disable-model-invocation: true
 
 - 接続失敗 → `pnpm dev` の起動を促して停止する。
 - `series.guide` が空 → 先に `create-series-guide` スキルを実行するよう促して停止する。
-- 既存のコースガイドがある → 内容を表示して「上書きしてよいか」を確認してから進む。
+- コースは複数ある。対象コースを確認してから進む。既存ガイドがある場合は内容を表示して「上書きしてよいか」を確認する。
 
 シリーズガイドの内容を確認・表示して、コースガイドの質問の文脈として使う。
 
@@ -87,6 +87,7 @@ Content-Type: application/json
 
 {
   "type": "course",
+  "courseId": "<対象コースのid>",
   "guide": {
     "lesson_roles": "...",
     "must_include":  "...",

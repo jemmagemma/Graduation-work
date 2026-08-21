@@ -1,0 +1,9 @@
+{
+  "id": "kitei-02",
+  "title": "振袖",
+  "lessonIndex": 1,
+  "status": "pending",
+  "inspection": { "status": "pending", "errors": [] },
+  "generationError": null,
+  "questions": []
+}

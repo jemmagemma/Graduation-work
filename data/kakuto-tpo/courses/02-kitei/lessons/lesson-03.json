@@ -1,0 +1,9 @@
+{
+  "id": "kitei-03",
+  "title": "紋付と黒紋付",
+  "lessonIndex": 2,
+  "status": "pending",
+  "inspection": { "status": "pending", "errors": [] },
+  "generationError": null,
+  "questions": []
+}

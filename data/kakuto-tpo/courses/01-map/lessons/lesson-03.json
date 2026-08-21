@@ -1,0 +1,9 @@
+{
+  "id": "map-03",
+  "title": "必需品から選択品へ",
+  "lessonIndex": 2,
+  "status": "pending",
+  "inspection": { "status": "pending", "errors": [] },
+  "generationError": null,
+  "questions": []
+}

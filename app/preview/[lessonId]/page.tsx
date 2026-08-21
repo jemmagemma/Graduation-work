@@ -16,7 +16,9 @@ export default function PreviewPage({ params }: { params: Promise<{ lessonId: st
       fetch('/api/data')
         .then(r => r.json())
         .then(d => {
-          const found = d.lessons.find((l: Lesson) => l.id === p.lessonId)
+          const found = (d.courses ?? [])
+            .flatMap((c: { lessons: Lesson[] }) => c.lessons)
+            .find((l: Lesson) => l.id === p.lessonId)
           setLesson(found ?? null)
         })
     })
@@ -97,7 +99,7 @@ export default function PreviewPage({ params }: { params: Promise<{ lessonId: st
       {/* ヘッダー */}
       <header className="bg-white border-b border-stone-200 px-6 py-3 flex items-center gap-4 shrink-0">
         <div>
-          <span className="text-[10px] text-slate-400 tracking-wide">プレビュー</span>
+          <span className="text-[10px] text-slate-400 tracking-wide">令和きもの販売員ドリル · プレビュー</span>
           <h1 className="text-sm font-bold text-slate-800 leading-tight">{lesson.title}</h1>
         </div>
         <div className="flex-1">

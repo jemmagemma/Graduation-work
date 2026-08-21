@@ -7,10 +7,11 @@ export const series = sqliteTable('series', {
 })
 
 export const courses = sqliteTable('courses', {
-  id:       text('id').primaryKey(),
-  seriesId: text('series_id').notNull().references(() => series.id),
-  title:    text('title').notNull(),
-  guide:    text('guide').notNull(), // JSON: CourseGuide
+  id:          text('id').primaryKey(),
+  seriesId:    text('series_id').notNull().references(() => series.id),
+  title:       text('title').notNull(),
+  courseIndex: integer('course_index').notNull().default(0),
+  guide:       text('guide').notNull(), // JSON: CourseGuide
 })
 
 export const lessons = sqliteTable('lessons', {

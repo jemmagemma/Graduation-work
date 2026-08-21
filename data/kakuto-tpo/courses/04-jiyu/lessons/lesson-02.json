@@ -1,0 +1,9 @@
+{
+  "id": "jiyu-02",
+  "title": "小紋",
+  "lessonIndex": 1,
+  "status": "pending",
+  "inspection": { "status": "pending", "errors": [] },
+  "generationError": null,
+  "questions": []
+}

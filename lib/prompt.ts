@@ -2,6 +2,7 @@ import type { SeriesGuide, CourseGuide, Lesson } from './types'
 
 export function buildPrompt(
   seriesGuide: SeriesGuide,
+  courseTitle: string,
   courseGuide: CourseGuide,
   lessonTitle: string,
   lessonIndex: number,
@@ -23,7 +24,7 @@ export function buildPrompt(
 例外: ${seriesGuide.exceptions || '（未記入）'}
 文体: ${seriesGuide.writing_style || '（未記入）'}
 
-## コースガイド「着物の格」
+## コースガイド「${courseTitle}」
 各レッスンの役割: ${courseGuide.lesson_roles || '（未記入）'}
 各回で必ず出すこと: ${courseGuide.must_include || '（未記入）'}
 後のレッスンで再登場させること: ${courseGuide.revisit || '（未記入）'}

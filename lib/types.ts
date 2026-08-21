@@ -44,8 +44,15 @@ export interface Lesson {
   questions: Question[]
 }
 
+export interface Course {
+  id: string
+  title: string
+  courseIndex: number
+  guide: CourseGuide
+  lessons: Lesson[]
+}
+
 export interface DrillData {
   series: { id: string; title: string; guide: SeriesGuide }
-  course: { id: string; title: string; guide: CourseGuide }
-  lessons: Lesson[]
+  courses: Course[]
 }
