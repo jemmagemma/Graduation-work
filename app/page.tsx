@@ -15,7 +15,7 @@ type ActiveSelection =
 const STATUS_LABEL  = { pending: '未生成', draft: '下書き', approved: 'これでよい' } as const
 const STATUS_DOT    = { pending: '□', draft: '○', approved: '●' } as const
 const STATUS_DOT_COLOR = {
-  pending:  'text-slate-400',
+  pending:  'text-white/40',
   draft:    'text-amber-400',
   approved: 'text-emerald-400',
 } as const
@@ -104,7 +104,7 @@ export default function Page() {
 
   if (initLoading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-stone-100 text-slate-500 text-sm">
+      <div className="flex h-screen items-center justify-center bg-studio-canvas text-studio-muted text-sm">
         読み込み中…
       </div>
     )
@@ -124,16 +124,15 @@ export default function Page() {
     : undefined
 
   return (
-    <div className="flex h-screen overflow-hidden bg-stone-100 text-sm font-sans">
+    <div className="flex flex-col h-screen overflow-hidden bg-studio-canvas text-sm font-sans">
 
+      <header className="h-7 shrink-0 flex items-center justify-center border-b border-studio-title bg-studio-title">
+        <span className="text-[11px] font-medium tracking-wide text-white">Gofuku Quiz 工房</span>
+      </header>
+
+      <div className="flex flex-1 min-h-0">
       {/* ── P1: ツリー ── */}
-      <aside className="w-60 shrink-0 bg-slate-800 text-slate-200 flex flex-col overflow-y-auto">
-        <div className="px-4 py-3 border-b border-slate-700 shrink-0">
-          <div className="text-[11px] font-bold text-white leading-tight">令和きもの販売員ドリル</div>
-          <div className="text-[10px] text-slate-400 mt-0.5">{seriesTitle}</div>
-          <div className="text-[9px] text-slate-600 mt-1">呉服Quiz工房</div>
-        </div>
-
+      <aside className="flex-[2] min-w-0 bg-slate-800 text-white flex flex-col overflow-y-auto">
         <nav className="flex-1 p-2 text-xs">
           <TreeItem
             indent={0} chevron={seriesOpen ? '▼' : '▶'} label={seriesTitle} tag="シリーズ"
@@ -175,7 +174,7 @@ export default function Page() {
                         <span className={`text-[11px] w-3 text-center ${STATUS_DOT_COLOR[lesson.status]}`}>
                           {STATUS_DOT[lesson.status]}
                         </span>
-                        <span className="truncate text-slate-300">{lesson.title}</span>
+                        <span className="truncate text-white/90">{lesson.title}</span>
                       </button>
 
                       {openLesson === lessonIdx && selectedCourseIdx === courseIdx && !locked && lesson.questions.map((q, qIdx) => (
@@ -189,7 +188,7 @@ export default function Page() {
                               ? 'bg-slate-700' : '',
                           ].join(' ')}
                         >
-                          <span className="text-[10px] text-slate-500 w-8">設問{q.id}</span>
+                          <span className="text-[10px] text-white/45 w-8">設問{q.id}</span>
                           <span className={`text-[9px] px-1 rounded ${
                             q.qType === 'four_choice' ? 'bg-blue-900 text-blue-300' : 'bg-purple-900 text-purple-300'
                           }`}>
@@ -205,7 +204,7 @@ export default function Page() {
           })}
         </nav>
 
-        <div className="border-t border-slate-700 p-2 shrink-0">
+        <div className="border-t border-white/10 p-2 shrink-0">
           <button
             onClick={() => setSelected({ type: 'settings' })}
             className={[
@@ -220,7 +219,7 @@ export default function Page() {
       </aside>
 
       {/* ── P2: ガイド ── */}
-      <div className="w-72 shrink-0 border-r border-stone-200 flex flex-col bg-white overflow-y-auto">
+      <div className="flex-[4] min-w-0 border-r border-studio-line flex flex-col bg-studio-canvas overflow-y-auto">
         <GuidePane
           selected={selected}
           seriesTitle={seriesTitle}
@@ -248,10 +247,10 @@ export default function Page() {
       </div>
 
       {/* ── P3: 編集 ── */}
-      <div className="flex-1 flex flex-col bg-white overflow-y-auto min-w-0">
+      <div className="flex-[4] min-w-0 flex flex-col bg-studio-canvas overflow-y-auto">
         {selected.type === 'settings' || selected.type === 'series' || selected.type === 'course' ? (
           <div className="flex items-center justify-center h-full">
-            <p className="text-slate-300 text-xs">← ツリーからレッスンを選ぶと設問一覧が表示されます</p>
+            <p className="text-studio-muted text-xs">← ツリーからレッスンを選ぶと設問一覧が表示されます</p>
           </div>
         ) : selected.type === 'question' && selectedLesson ? (
           <QuestionEditor
@@ -278,9 +277,10 @@ export default function Page() {
           />
         ) : (
           <div className="flex items-center justify-center h-full">
-            <p className="text-slate-300 text-xs">← ツリーからレッスンを選ぶと設問一覧が表示されます</p>
+            <p className="text-studio-muted text-xs">← ツリーからレッスンを選ぶと設問一覧が表示されます</p>
           </div>
         )}
+      </div>
       </div>
     </div>
   )
@@ -299,9 +299,9 @@ function TreeItem({ indent, chevron, label, tag, active, onClick }: {
         active ? 'bg-slate-700' : '',
       ].join(' ')}
     >
-      <span className="text-slate-400 w-3 text-center text-[10px]">{chevron}</span>
-      <span className={`truncate flex-1 ${indent === 0 ? 'text-slate-200 font-medium' : 'text-slate-300'}`}>{label}</span>
-      <span className="text-[9px] text-slate-500 shrink-0">{tag}</span>
+      <span className="text-white/45 w-3 text-center text-[10px]">{chevron}</span>
+      <span className={`truncate flex-1 ${indent === 0 ? 'text-white font-medium' : 'text-white/90'}`}>{label}</span>
+      <span className="text-[9px] text-white/45 shrink-0">{tag}</span>
     </button>
   )
 }
@@ -326,15 +326,15 @@ function GuidePane({
         <PaneHeader badge="設定" title="APIキー" />
         <div className="flex-1 p-4 space-y-4">
           <div>
-            <label className="text-[11px] font-semibold text-slate-500 block mb-1">Anthropic APIキー</label>
+            <label className="text-[11px] font-semibold text-studio-ink block mb-1">Anthropic APIキー</label>
             <input
               type="password"
               value={apiKey}
               onChange={e => onSaveApiKey(e.target.value)}
               placeholder="sk-ant-..."
-              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-slate-300"
+              className="w-full border border-studio-line bg-studio-card rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-studio-ink/20"
             />
-            <p className="text-[10px] text-slate-400 mt-1">ファイルには保存されません。ページを閉じると消えます。</p>
+            <p className="text-[10px] text-studio-muted mt-1">ファイルには保存されません。ページを閉じると消えます。</p>
           </div>
           {apiKey && (
             <div className="flex items-center gap-1.5 text-[11px] text-emerald-600">
@@ -379,11 +379,11 @@ function GuidePane({
     <div className="flex flex-col h-full">
       <PaneHeader badge="コースガイド" title={refCourse?.title ?? ''} dimmed />
       <div className="flex-1 p-4 space-y-3 overflow-y-auto">
-        <div className="space-y-3 bg-stone-50 rounded-lg p-3">
+        <div className="space-y-3 bg-studio-card rounded-lg p-3">
           <FieldView label="各レッスンの役割" value={refCourse?.guide.lesson_roles || '（未記入）'} />
           <FieldView label="含めないこと" value={refCourse?.guide.exclude || ''} />
         </div>
-        <p className="text-[10px] text-slate-400 text-center">コースを選択すると編集できます</p>
+        <p className="text-[10px] text-studio-muted text-center">コースを選択すると編集できます</p>
       </div>
     </div>
   )
@@ -414,10 +414,10 @@ function SeriesGuideForm({ title, initial, onSave }: { title: string; initial: S
         <GF label="例外"            value={draft.exceptions}        onChange={set('exceptions')}        rows={8} />
         <GF label="文体"            value={draft.writing_style}     onChange={set('writing_style')}     rows={5} />
       </div>
-      <div className="p-4 border-t border-stone-100 shrink-0">
+      <div className="p-4 border-t border-studio-line shrink-0">
         <button
           onClick={handleSave} disabled={saving}
-          className="w-full bg-slate-800 text-white text-xs py-2 rounded-lg hover:bg-slate-700 disabled:opacity-50 transition-colors"
+          className="w-full bg-studio-ink text-white text-xs py-2 rounded-lg hover:bg-studio-ink-hover disabled:opacity-50 transition-colors"
         >
           {saving ? '保存中…' : '保存'}
         </button>
@@ -450,10 +450,10 @@ function CourseGuideForm({ title, initial, onSave }: { title: string; initial: C
         <GF label="含めないこと"               value={draft.exclude}      readOnly                        rows={2} />
         <GF label="完了条件"                   value={draft.completion}   onChange={set('completion')}    rows={2} />
       </div>
-      <div className="p-4 border-t border-stone-100 shrink-0">
+      <div className="p-4 border-t border-studio-line shrink-0">
         <button
           onClick={handleSave} disabled={saving}
-          className="w-full bg-slate-800 text-white text-xs py-2 rounded-lg hover:bg-slate-700 disabled:opacity-50 transition-colors"
+          className="w-full bg-studio-ink text-white text-xs py-2 rounded-lg hover:bg-studio-ink-hover disabled:opacity-50 transition-colors"
         >
           {saving ? '保存中…' : '保存'}
         </button>
@@ -479,7 +479,7 @@ function LessonEditor({ lesson, lessonIdx, apiKey, generating, onGenerate, onApp
           <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
             lesson.status === 'approved' ? 'bg-emerald-100 text-emerald-700' :
             lesson.status === 'draft'    ? 'bg-amber-100 text-amber-700' :
-            'bg-stone-100 text-slate-400'
+            'bg-studio-card text-studio-muted'
           }`}>
             {STATUS_LABEL[lesson.status]}
           </span>
@@ -500,7 +500,7 @@ function LessonEditor({ lesson, lessonIdx, apiKey, generating, onGenerate, onApp
           {lesson.status === 'pending' ? (
             <button
               onClick={onGenerate} disabled={generating || !apiKey}
-              className="bg-slate-800 text-white text-xs px-5 py-2 rounded-lg hover:bg-slate-700 disabled:opacity-50 transition-colors font-medium"
+              className="bg-studio-ink text-white text-xs px-5 py-2 rounded-lg hover:bg-studio-ink-hover disabled:opacity-50 transition-colors font-medium"
             >
               {generating ? '生成中…' : 'このレッスンを生成'}
             </button>
@@ -508,14 +508,14 @@ function LessonEditor({ lesson, lessonIdx, apiKey, generating, onGenerate, onApp
             <>
               <button
                 onClick={onGenerate} disabled={generating || !apiKey}
-                className="border border-stone-300 text-slate-600 text-xs px-3 py-2 rounded-lg hover:bg-stone-50 disabled:opacity-50 transition-colors"
+                className="border border-studio-line text-studio-ink text-xs px-3 py-2 rounded-lg hover:bg-studio-card disabled:opacity-50 transition-colors"
               >
                 {generating ? '生成中…' : 'レッスンを再生成'}
-                <span className="text-[10px] text-slate-400 ml-1">（確認あり）</span>
+                <span className="text-[10px] text-studio-muted ml-1">（確認あり）</span>
               </button>
               <button
                 onClick={() => window.open(`/preview/${lesson.id}`, '_blank')}
-                className="border border-stone-300 text-slate-600 text-xs px-3 py-2 rounded-lg hover:bg-stone-50 transition-colors"
+                className="border border-studio-line text-studio-ink text-xs px-3 py-2 rounded-lg hover:bg-studio-card transition-colors"
               >
                 プレビュー ▶
               </button>
@@ -539,11 +539,11 @@ function LessonEditor({ lesson, lessonIdx, apiKey, generating, onGenerate, onApp
           <div className={`flex items-start gap-2.5 rounded-xl p-3.5 text-xs ${
             lesson.inspection.status === 'pass' ? 'bg-emerald-50 border border-emerald-200' :
             lesson.inspection.status === 'fail' ? 'bg-red-50 border border-red-200' :
-            'bg-stone-50 border border-stone-200'
+            'bg-studio-card border border-studio-line'
           }`}>
             <span className={`text-base leading-none mt-0.5 ${
               lesson.inspection.status === 'pass' ? 'text-emerald-500' :
-              lesson.inspection.status === 'fail' ? 'text-red-500' : 'text-slate-300'
+              lesson.inspection.status === 'fail' ? 'text-red-500' : 'text-studio-muted'
             }`}>
               {lesson.inspection.status === 'pass' ? '✓' :
                lesson.inspection.status === 'fail' ? '✗' : '–'}
@@ -551,7 +551,7 @@ function LessonEditor({ lesson, lessonIdx, apiKey, generating, onGenerate, onApp
             <div>
               <span className={`font-semibold ${
                 lesson.inspection.status === 'pass' ? 'text-emerald-700' :
-                lesson.inspection.status === 'fail' ? 'text-red-600' : 'text-slate-500'
+                lesson.inspection.status === 'fail' ? 'text-red-600' : 'text-studio-muted'
               }`}>
                 機械検査: {INSPECT_LABEL[lesson.inspection.status]}
               </span>
@@ -568,24 +568,24 @@ function LessonEditor({ lesson, lessonIdx, apiKey, generating, onGenerate, onApp
         {/* 設問一覧 */}
         {lesson.questions.length > 0 && (
           <div className="space-y-2">
-            <h3 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+            <h3 className="text-[11px] font-semibold text-studio-muted uppercase tracking-wider">
               設問一覧 — {lesson.questions.length} 問
             </h3>
             {lesson.questions.map((q, qIdx) => (
               <button
                 key={q.id}
                 onClick={() => onSelectQuestion(lessonIdx, qIdx)}
-                className="w-full text-left border border-stone-200 rounded-xl p-3.5 hover:border-slate-400 hover:bg-stone-50 transition-all group"
+                className="w-full text-left border border-studio-line bg-studio-card rounded-xl p-3.5 hover:border-studio-ink/30 hover:bg-white/50 transition-all group"
               >
                 <div className="flex items-start gap-2.5">
-                  <span className="text-[11px] font-mono text-slate-400 shrink-0 mt-0.5">Q{q.id}</span>
+                  <span className="text-[11px] font-mono text-studio-muted shrink-0 mt-0.5">Q{q.id}</span>
                   <span className={`text-[10px] px-1.5 py-0.5 rounded-md shrink-0 font-medium mt-0.5 ${
                     q.qType === 'four_choice' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'
                   }`}>
                     {q.qType === 'four_choice' ? '四択' : '○×'}
                   </span>
-                  <span className="text-xs text-slate-700 line-clamp-2 flex-1">{q.text}</span>
-                  <span className="text-[10px] text-slate-300 group-hover:text-slate-500 shrink-0 mt-0.5">編集 →</span>
+                  <span className="text-xs text-studio-ink line-clamp-2 flex-1">{q.text}</span>
+                  <span className="text-[10px] text-studio-muted/60 group-hover:text-studio-muted shrink-0 mt-0.5">編集 →</span>
                 </div>
               </button>
             ))}
@@ -593,15 +593,15 @@ function LessonEditor({ lesson, lessonIdx, apiKey, generating, onGenerate, onApp
         )}
 
         {lesson.status === 'pending' && !generating && (
-          <div className="text-center py-16 text-slate-300 text-xs space-y-2">
+          <div className="text-center py-16 text-studio-muted/50 text-xs space-y-2">
             <div className="text-3xl">○</div>
-            <p className="font-medium text-slate-400">未生成</p>
+            <p className="font-medium text-studio-muted">未生成</p>
             {lessonIdx > 0 && <p>前のレッスンが「これでよい」になると生成できます。</p>}
           </div>
         )}
 
         {generating && (
-          <div className="text-center py-16 text-slate-400 text-xs space-y-2">
+          <div className="text-center py-16 text-studio-muted text-xs space-y-2">
             <div className="text-2xl animate-spin inline-block">⟳</div>
             <p>Claude が設問を生成中です…</p>
           </div>
@@ -643,24 +643,24 @@ function QuestionEditor({ lesson, lessonIdx, question, qIdx, onSave }: {
       />
       <div className="flex-1 overflow-y-auto p-5 space-y-5">
         <div>
-          <label className="text-[11px] font-semibold text-slate-500 block mb-1.5">問題文</label>
+          <label className="text-[11px] font-semibold text-studio-muted block mb-1.5">問題文</label>
           <textarea
             value={draft.text}
             onChange={e => setDraft(d => ({ ...d, text: e.target.value }))}
             rows={3}
-            className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300 resize-none"
+            className="w-full border border-studio-line bg-studio-card rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-studio-ink/20 resize-none"
           />
         </div>
 
         {draft.qType === 'four_choice' && draft.choices && (
           <div className="space-y-2">
-            <label className="text-[11px] font-semibold text-slate-500 block">選択肢</label>
+            <label className="text-[11px] font-semibold text-studio-muted block">選択肢</label>
             {draft.choices.map((choice, i) => (
               <div key={i} className="flex items-center gap-2.5">
                 <button
                   onClick={() => setDraft(d => ({ ...d, correct: i }))}
                   className={`w-5 h-5 rounded-full text-[11px] font-bold shrink-0 transition-colors ${
-                    i === draft.correct ? 'bg-emerald-500 text-white' : 'bg-stone-200 text-slate-500 hover:bg-stone-300'
+                    i === draft.correct ? 'bg-emerald-500 text-white' : 'bg-studio-line text-studio-muted hover:bg-studio-muted/30'
                   }`}
                 >
                   {i + 1}
@@ -672,20 +672,20 @@ function QuestionEditor({ lesson, lessonIdx, question, qIdx, onSave }: {
                     choices[i] = e.target.value
                     return { ...d, choices }
                   })}
-                  className="flex-1 border border-stone-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-slate-300"
+                  className="flex-1 border border-studio-line bg-studio-card rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-studio-ink/20"
                 />
                 {i === draft.correct && (
                   <span className="text-[10px] text-emerald-600 font-semibold shrink-0">正解</span>
                 )}
               </div>
             ))}
-            <p className="text-[10px] text-slate-400">番号ボタンを押すと正解を変更できます</p>
+            <p className="text-[10px] text-studio-muted">番号ボタンを押すと正解を変更できます</p>
           </div>
         )}
 
         {draft.qType === 'true_false' && (
           <div>
-            <label className="text-[11px] font-semibold text-slate-500 block mb-2">正解</label>
+            <label className="text-[11px] font-semibold text-studio-muted block mb-2">正解</label>
             <div className="flex gap-3">
               {([true, false] as const).map(val => (
                 <button
@@ -694,7 +694,7 @@ function QuestionEditor({ lesson, lessonIdx, question, qIdx, onSave }: {
                   className={`flex items-center gap-2 px-5 py-2.5 rounded-xl border-2 transition-colors ${
                     draft.answer === val
                       ? val ? 'border-emerald-400 bg-emerald-50' : 'border-red-400 bg-red-50'
-                      : 'border-stone-200 hover:border-stone-300'
+                      : 'border-studio-line hover:border-studio-ink/30'
                   }`}
                 >
                   <span className="text-xl leading-none">{val ? '○' : '×'}</span>
@@ -706,31 +706,31 @@ function QuestionEditor({ lesson, lessonIdx, question, qIdx, onSave }: {
         )}
 
         <div>
-          <label className="text-[11px] font-semibold text-slate-500 block mb-1.5">解説（2〜3文）</label>
+          <label className="text-[11px] font-semibold text-studio-muted block mb-1.5">解説（2〜3文）</label>
           <textarea
             value={draft.explanation}
             onChange={e => setDraft(d => ({ ...d, explanation: e.target.value }))}
             rows={3}
-            className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300 resize-none"
+            className="w-full border border-studio-line bg-studio-card rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-studio-ink/20 resize-none"
           />
         </div>
 
         <div className="flex gap-3">
           <button
             onClick={handleSave} disabled={saving}
-            className="flex-1 bg-slate-800 text-white text-xs py-2.5 rounded-lg hover:bg-slate-700 disabled:opacity-50 transition-colors font-medium"
+            className="flex-1 bg-studio-ink text-white text-xs py-2.5 rounded-lg hover:bg-studio-ink-hover disabled:opacity-50 transition-colors font-medium"
           >
             {saving ? '保存中…' : 'この設問を更新'}
           </button>
           <button
             onClick={() => setDraft(question)}
-            className="border border-stone-300 text-slate-500 text-xs px-4 py-2.5 rounded-lg hover:bg-stone-50 transition-colors"
+            className="border border-studio-line text-studio-muted text-xs px-4 py-2.5 rounded-lg hover:bg-studio-card transition-colors"
           >
             元に戻す
           </button>
         </div>
 
-        <p className="text-center text-[10px] text-slate-400">
+        <p className="text-center text-[10px] text-studio-muted">
           設問 {qIdx + 1} / {lesson.questions.length}
         </p>
       </div>
@@ -743,11 +743,11 @@ function PaneHeader({ badge, title, right, dimmed }: {
   badge: string; title: string; right?: React.ReactNode; dimmed?: boolean
 }) {
   return (
-    <div className={`flex items-center gap-2 px-4 py-3 border-b shrink-0 ${dimmed ? 'border-stone-50 bg-stone-50' : 'border-stone-100 bg-white'}`}>
-      <span className={`text-[10px] px-2 py-0.5 rounded font-semibold tracking-wide ${dimmed ? 'bg-stone-100 text-slate-400' : 'bg-slate-100 text-slate-600'}`}>
+    <div className={`flex items-center gap-2 px-4 py-3 border-b shrink-0 ${dimmed ? 'border-studio-line/60 bg-studio-canvas' : 'border-studio-line bg-white'}`}>
+      <span className={`text-[10px] px-2 py-0.5 rounded font-semibold tracking-wide ${dimmed ? 'bg-white text-studio-muted' : 'bg-[#E8EEF4] text-studio-ink'}`}>
         {badge}
       </span>
-      <span className={`text-sm font-semibold flex-1 truncate ${dimmed ? 'text-slate-400' : 'text-slate-800'}`}>
+      <span className={`text-sm font-semibold flex-1 truncate ${dimmed ? 'text-studio-muted' : 'text-studio-ink'}`}>
         {title}
       </span>
       {right}
@@ -761,14 +761,14 @@ function GF({ label, value, onChange, rows = 3, readOnly = false }: {
 }) {
   return (
     <div>
-      <label className="text-[11px] font-semibold text-slate-500 block mb-1">{label}</label>
+      <label className="text-[11px] font-semibold text-studio-ink block mb-1">{label}</label>
       <textarea
         value={value}
         onChange={e => onChange?.(e.target.value)}
         rows={rows}
         readOnly={readOnly}
-        className={`w-full border rounded-lg px-2.5 py-2 text-xs resize-none focus:outline-none focus:ring-2 focus:ring-slate-300 ${
-          readOnly ? 'bg-stone-50 border-stone-100 text-slate-500 cursor-default' : 'border-stone-200'
+        className={`w-full border rounded-lg px-2.5 py-2 text-xs resize-none focus:outline-none focus:ring-2 focus:ring-studio-ink/20 ${
+          readOnly ? 'bg-studio-card border-studio-line text-studio-muted cursor-default' : 'border-studio-line bg-studio-card'
         }`}
       />
     </div>
@@ -778,8 +778,8 @@ function GF({ label, value, onChange, rows = 3, readOnly = false }: {
 function FieldView({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <div className="text-[10px] font-semibold text-slate-400 mb-0.5">{label}</div>
-      <div className="text-xs text-slate-600 whitespace-pre-line">{value}</div>
+      <div className="text-[10px] font-semibold text-studio-ink mb-0.5">{label}</div>
+      <div className="text-xs text-studio-ink/80 whitespace-pre-line">{value}</div>
     </div>
   )
 }

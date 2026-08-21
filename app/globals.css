@@ -10,6 +10,15 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --color-studio-canvas: #F2EBEB;
+  --color-studio-ink: #1E3A5F;
+  --color-studio-ink-deep: #162C4A;
+  --color-studio-ink-hover: #2A4A73;
+  --color-studio-ink-active: #163052;
+  --color-studio-title: #5B7A9A;
+  --color-studio-line: #A8B0BA;
+  --color-studio-card: #FFFFFF;
+  --color-studio-muted: #4A5568;
 }
 
 @media (prefers-color-scheme: dark) {
