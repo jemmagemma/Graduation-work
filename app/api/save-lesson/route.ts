@@ -10,7 +10,11 @@ export async function POST(req: Request) {
       questions: Question[]
     }
     const lesson = loadLesson(lessonId)
-    const updated = runInspection({ ...lesson, questions })
+    const updated = runInspection({
+      ...lesson,
+      questions,
+      status: lesson.status === 'approved' ? 'approved' : 'draft',
+    })
     saveLesson(updated)
     return NextResponse.json(updated)
   } catch (e) {
