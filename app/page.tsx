@@ -30,7 +30,7 @@ const EMPTY_SERIES_GUIDE: SeriesGuide = {
 /* ── メインページ ─────────────────────────────────────────── */
 export default function Page() {
   const [seriesGuide, setSeriesGuide] = useState<SeriesGuide>(EMPTY_SERIES_GUIDE)
-  const [seriesTitle, setSeriesTitle] = useState('格とTPO')
+  const [seriesTitle, setSeriesTitle] = useState('品目の格とTPO')
   const [courses, setCourses]         = useState<Course[]>([])
   const [apiKey, setApiKey]           = useState('')
   const [initLoading, setInitLoading] = useState(true)

@@ -9,6 +9,26 @@ function hasForbidden(text: string): string[] {
   return FORBIDDEN.filter(w => text.includes(w))
 }
 
+/** 正解だけが明らかに長いと、長さで当たる */
+const CHOICE_LEN_GAP = 8
+
+function checkChoiceLength(
+  errors: string[],
+  label: string,
+  choices: string[],
+  correct: number,
+): void {
+  const correctLen = [...choices[correct]].length
+  const otherMax = Math.max(
+    ...choices.filter((_, i) => i !== correct).map(c => [...c].length),
+  )
+  if (correctLen - otherMax >= CHOICE_LEN_GAP) {
+    errors.push(
+      `${label}: 正解の選択肢が他より${correctLen - otherMax}文字長い（長さで当たる）`,
+    )
+  }
+}
+
 export function inspect(questions: Question[]): InspectionResult {
   const errors: string[] = []
 
@@ -27,6 +47,8 @@ export function inspect(questions: Question[]): InspectionResult {
         errors.push(`${label}: 選択肢が ${q.choices?.length ?? 0} つです（4つ必要）`)
       if (q.correct === undefined || q.correct < 0 || q.correct > 3)
         errors.push(`${label}: 正解インデックスが不正です`)
+      else if (q.choices?.length === 4)
+        checkChoiceLength(errors, label, q.choices, q.correct)
     } else if (q.qType === 'true_false') {
       if (q.answer === undefined)
         errors.push(`${label}: 正解（○×）が設定されていません`)
