@@ -1,8 +1,8 @@
 import type { Question, Lesson, InspectionResult } from './types'
 
 const FORBIDDEN = [
-  'フォーマル度', 'ドレスコード', 'ランク', 'レベル',
-  'ステータス', '燕尾服', 'タキシード', 'カクテルドレス',
+  'フォーマル度', 'ランク', 'レベル',
+  'ステータス', 'セミフォーマル', '燕尾服', 'タキシード', 'カクテルドレス',
 ]
 
 function hasForbidden(text: string): string[] {

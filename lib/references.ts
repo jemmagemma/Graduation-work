@@ -20,6 +20,18 @@ const BY_THEME: { test: RegExp; files: string[] }[] = [
     test: /振袖/,
     files: ['hare-ke-daihakkai-furisode.txt'],
   },
+  {
+    test: /訪問着|付下|色無地|あいだ/,
+    files: ['hatsugama-sotsunyugakushiki.txt', 'kekkonshiki-tachiba.txt'],
+  },
+  {
+    test: /黒留袖|色留袖|留袖|主催|振袖/,
+    files: ['kekkonshiki-tachiba.txt'],
+  },
+  {
+    test: /地図|自由演技|紬|小紋/,
+    files: ['kajuaru-fomaru-shuyaku.txt'],
+  },
 ]
 
 export function selectReferenceFiles(courseTitle: string, lessonTitle: string): string[] {
