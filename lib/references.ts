@@ -36,6 +36,30 @@ const BY_THEME: { test: RegExp; files: string[] }[] = [
     test: /江戸小紋|江戸三役|小紋| 色無地$/,
     files: ['edo-sanyaku.txt'],
   },
+  {
+    test: /紬|お召|御召/,
+    files: ['tsumugi-omeshi.txt'],
+  },
+  {
+    test: /家紋|紋で格|格を調整して提案する 紋/,
+    files: ['kamon-chado.txt', 'kamon-kiso.txt'],
+  },
+  {
+    test: /素材|羽二重|縮緬/,
+    files: ['sozai-kaku-teire.txt'],
+  },
+  {
+    test: /帯で格|袋帯|名古屋帯|格を調整して提案する 帯/,
+    files: ['obi-kakuawase.txt'],
+  },
+  {
+    test: /小物で格|帯締め|帯揚げ|格を調整して提案する 小物/,
+    files: ['obijime-obiage.txt'],
+  },
+  {
+    test: /紋付|黒紋付|色紋付|紬と素材/,
+    files: ['dansei-kimono.txt'],
+  },
 ]
 
 export function selectReferenceFiles(courseTitle: string, lessonTitle: string): string[] {
