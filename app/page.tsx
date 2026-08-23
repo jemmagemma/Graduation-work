@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import type { DrillData, Lesson, Question, SeriesGuide, CourseGuide, Course } from '@/lib/types'
+import { failedQuestionIndexes, inspectQuestion } from '@/lib/inspect'
 import { declaredQuestionCount, formatQuestionCounts, parseQuestionCounts } from '@/lib/questionCount'
 
 /* ── UI 選択状態 ───────────────────────────────────────────── */
@@ -24,7 +25,7 @@ const INSPECT_LABEL = { pending: '未実施', pass: '合格', fail: '不合格' 
 
 const EMPTY_SERIES_GUIDE: SeriesGuide = {
   purpose: '', terms: '', aux_concept: '',
-  forbidden_synonyms: 'フォーマル度・ドレスコード・ランク・レベル・格式・ステータス・燕尾服・タキシード・カクテルドレス',
+  forbidden_synonyms: 'フォーマル度・ドレスコード・ランク・レベル・ステータス・燕尾服・タキシード・カクテルドレス',
   exceptions: '', writing_style: '',
 }
 
@@ -61,19 +62,36 @@ export default function Page() {
     })))
   }, [])
 
-  const handleGenerate = useCallback(async (courseIdx: number, lessonIdx: number) => {
+  const handleGenerate = useCallback(async (
+    courseIdx: number,
+    lessonIdx: number,
+    scope: 'all' | 'failed' = 'all',
+  ) => {
     const lesson = courses[courseIdx]?.lessons[lessonIdx]
     if (!lesson) return
-    if (lesson.status === 'draft' && !window.confirm('現在の下書きを削除して再生成しますか？')) return
+    const generateScope = scope === 'failed' ? 'failed' : 'all'
+    if (generateScope === 'failed') {
+      if (failedQuestionIndexes(lesson.questions).length === 0) {
+        window.alert('検査不合格の設問がありません。全体を再生成してください。')
+        return
+      }
+      if (!window.confirm('検査不合格の設問だけ置き換えます。合格した設問はそのまま残ります。')) return
+    } else if (lesson.status === 'draft') {
+      if (!window.confirm('現在の下書きを削除してレッスン全体を再生成しますか？')) return
+    }
 
     setGeneratingId(lesson.id)
     const res = await fetch('/api/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ lessonId: lesson.id, apiKey }),
+      body: JSON.stringify({ lessonId: lesson.id, apiKey, scope: generateScope }),
     })
     const data = await res.json() as Lesson & { error?: string }
     setGeneratingId(null)
+    if (data.error && !data.questions) {
+      window.alert(data.error)
+      return
+    }
     updateLesson(data)
     setSelected({ type: 'lesson', courseIdx, lessonIdx })
   }, [courses, apiKey, updateLesson])
@@ -268,7 +286,7 @@ export default function Page() {
             declaredCount={declaredQuestionCount(selectedCourse.guide, selected.lessonIdx)}
             apiKey={apiKey}
             generating={generatingId === selectedLesson.id}
-            onGenerate={() => handleGenerate(selected.courseIdx, selected.lessonIdx)}
+            onGenerate={(scope = 'all') => handleGenerate(selected.courseIdx, selected.lessonIdx, scope)}
             onApprove={() => handleApprove(selected.courseIdx, selected.lessonIdx)}
             onSelectQuestion={(li, qi) => setSelected({
               type: 'question',
@@ -474,9 +492,10 @@ function CourseGuideForm({ title, initial, onSave }: { title: string; initial: C
 /* ── P3: レッスン編集 ── */
 function LessonEditor({ lesson, lessonIdx, declaredCount, apiKey, generating, onGenerate, onApprove, onSelectQuestion }: {
   lesson: Lesson; lessonIdx: number; declaredCount: number | null; apiKey: string; generating: boolean
-  onGenerate: () => void; onApprove: () => void
+  onGenerate: (scope?: 'all' | 'failed') => void; onApprove: () => void
   onSelectQuestion: (li: number, qi: number) => void
 }) {
+  const hasFailedQuestions = failedQuestionIndexes(lesson.questions).length > 0
   if (!lesson) return null
 
   return (
@@ -508,20 +527,22 @@ function LessonEditor({ lesson, lessonIdx, declaredCount, apiKey, generating, on
         <div className="flex items-center gap-3 flex-wrap">
           {lesson.status === 'pending' ? (
             <button
-              onClick={onGenerate} disabled={generating || !apiKey}
+              onClick={() => onGenerate('all')} disabled={generating || !apiKey}
               className="bg-studio-ink text-white text-xs px-5 py-2 rounded-lg hover:bg-studio-ink-hover disabled:opacity-50 transition-colors font-medium"
             >
               {generating ? '生成中…' : 'このレッスンを生成'}
             </button>
           ) : (
             <>
-              <button
-                onClick={onGenerate} disabled={generating || !apiKey}
-                className="border border-studio-line text-studio-ink text-xs px-3 py-2 rounded-lg hover:bg-studio-card disabled:opacity-50 transition-colors"
-              >
-                {generating ? '生成中…' : 'レッスンを再生成'}
-                <span className="text-[10px] text-studio-muted ml-1">（確認あり）</span>
-              </button>
+              {lesson.inspection.status !== 'fail' && (
+                <button
+                  onClick={() => onGenerate('all')} disabled={generating || !apiKey}
+                  className="border border-studio-line text-studio-ink text-xs px-3 py-2 rounded-lg hover:bg-studio-card disabled:opacity-50 transition-colors"
+                >
+                  {generating ? '生成中…' : 'レッスンを再生成'}
+                  <span className="text-[10px] text-studio-muted ml-1">（確認あり）</span>
+                </button>
+              )}
               <button
                 onClick={() => window.open(`/preview/${lesson.id}`, '_blank')}
                 className="border border-studio-line text-studio-ink text-xs px-3 py-2 rounded-lg hover:bg-studio-card transition-colors"
@@ -572,33 +593,53 @@ function LessonEditor({ lesson, lessonIdx, declaredCount, apiKey, generating, on
               {lesson.inspection.errors.map((e, i) => (
                 <p key={i} className="text-red-500 mt-0.5">• {e}</p>
               ))}
+              {lesson.inspection.status === 'fail' && (
+                <div className="flex flex-wrap gap-2 mt-2.5">
+                  <button
+                    onClick={() => {
+                      const firstFail = lesson.questions.findIndex((q, i) => inspectQuestion(q, i).length > 0)
+                      onSelectQuestion(lessonIdx, firstFail >= 0 ? firstFail : 0)
+                    }}
+                    className="bg-studio-ink text-white text-xs px-3 py-1.5 rounded-lg hover:bg-studio-ink-hover transition-colors font-medium"
+                  >
+                    手修正
+                  </button>
+                  <button
+                    onClick={() => onGenerate('failed')}
+                    disabled={generating || !apiKey || !hasFailedQuestions}
+                    className="border border-red-200 text-red-700 text-xs px-3 py-1.5 rounded-lg hover:bg-red-100 disabled:opacity-50 transition-colors"
+                  >
+                    不合格のみ再生成
+                  </button>
+                  <button
+                    onClick={() => onGenerate('all')}
+                    disabled={generating || !apiKey}
+                    className="border border-red-200 text-red-700 text-xs px-3 py-1.5 rounded-lg hover:bg-red-100 disabled:opacity-50 transition-colors"
+                  >
+                    全体を再生成
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         )}
 
-        {/* 設問一覧 */}
-        {lesson.questions.length > 0 && (
-          <div className="space-y-2">
+        {/* 設問一覧：合格は全文表示、不合格は手修正／再生成 */}
+        {lesson.questions.length > 0 && !generating && (
+          <div className="space-y-3">
             <h3 className="text-[11px] font-semibold text-studio-muted uppercase tracking-wider">
-              設問一覧 — {lesson.questions.length} 問
+              設問 — {lesson.questions.length} 問
             </h3>
             {lesson.questions.map((q, qIdx) => (
-              <button
+              <QuestionResultCard
                 key={q.id}
-                onClick={() => onSelectQuestion(lessonIdx, qIdx)}
-                className="w-full text-left border border-studio-line bg-studio-card rounded-xl p-3.5 hover:border-studio-ink/30 hover:bg-white/50 transition-all group"
-              >
-                <div className="flex items-start gap-2.5">
-                  <span className="text-[11px] font-mono text-studio-muted shrink-0 mt-0.5">Q{q.id}</span>
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded-md shrink-0 font-medium mt-0.5 ${
-                    q.qType === 'four_choice' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'
-                  }`}>
-                    {q.qType === 'four_choice' ? '四択' : '○×'}
-                  </span>
-                  <span className="text-xs text-studio-ink line-clamp-2 flex-1">{q.text}</span>
-                  <span className="text-[10px] text-studio-muted/60 group-hover:text-studio-muted shrink-0 mt-0.5">編集 →</span>
-                </div>
-              </button>
+                question={q}
+                errors={inspectQuestion(q, qIdx)}
+                onEdit={() => onSelectQuestion(lessonIdx, qIdx)}
+                onRegenerate={onGenerate}
+                regenerating={generating}
+                canRegenerate={!!apiKey}
+              />
             ))}
           </div>
         )}
@@ -618,6 +659,107 @@ function LessonEditor({ lesson, lessonIdx, declaredCount, apiKey, generating, on
           </div>
         )}
       </div>
+    </div>
+  )
+}
+
+/* ── 生成結果の設問カード ── */
+function QuestionResultCard({
+  question, errors, onEdit, onRegenerate, regenerating, canRegenerate,
+}: {
+  question: Question
+  errors: string[]
+  onEdit: () => void
+  onRegenerate: (scope?: 'all' | 'failed') => void
+  regenerating: boolean
+  canRegenerate: boolean
+}) {
+  const failed = errors.length > 0
+  const typeLabel = question.qType === 'four_choice' ? '四択' : '○×'
+
+  return (
+    <div className={`rounded-xl p-3.5 border ${
+      failed ? 'bg-red-50/60 border-red-200' : 'bg-studio-card border-studio-line'
+    }`}>
+      <div className="flex items-center gap-2 mb-2">
+        <span className="text-[11px] font-mono text-studio-muted">Q{question.id}</span>
+        <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-medium ${
+          question.qType === 'four_choice' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'
+        }`}>
+          {typeLabel}
+        </span>
+        <span className={`text-[10px] font-semibold ${failed ? 'text-red-600' : 'text-emerald-600'}`}>
+          {failed ? '検査不合格' : '検査合格'}
+        </span>
+        {!failed && (
+          <button
+            onClick={onEdit}
+            className="ml-auto text-[10px] text-studio-muted hover:text-studio-ink"
+          >
+            編集
+          </button>
+        )}
+      </div>
+
+      <p className="text-xs text-studio-ink whitespace-pre-wrap">{question.text}</p>
+
+      {question.qType === 'four_choice' && question.choices && (
+        <ol className="mt-2 space-y-1">
+          {question.choices.map((choice, i) => (
+            <li key={i} className="flex items-start gap-2 text-xs">
+              <span className={`w-4 h-4 rounded-full text-[10px] font-bold shrink-0 flex items-center justify-center mt-0.5 ${
+                i === question.correct ? 'bg-emerald-500 text-white' : 'bg-studio-line text-studio-muted'
+              }`}>
+                {i + 1}
+              </span>
+              <span className={i === question.correct ? 'text-studio-ink font-medium' : 'text-studio-ink/80'}>
+                {choice}
+                {i === question.correct && <span className="text-emerald-600 font-semibold ml-1.5">正解</span>}
+              </span>
+            </li>
+          ))}
+        </ol>
+      )}
+
+      {question.qType === 'true_false' && (
+        <p className="mt-2 text-xs font-medium">
+          正解: {question.answer ? '○ 正しい' : '× 誤り'}
+        </p>
+      )}
+
+      {question.explanation && (
+        <p className="mt-2 text-[11px] text-studio-muted whitespace-pre-wrap">
+          解説: {question.explanation}
+        </p>
+      )}
+
+      {failed && (
+        <div className="mt-2.5 space-y-2">
+          {errors.map((e, i) => (
+            <p key={i} className="text-[11px] text-red-600">• {e}</p>
+          ))}
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={onEdit}
+              className="bg-studio-ink text-white text-xs px-3 py-1.5 rounded-lg hover:bg-studio-ink-hover transition-colors font-medium"
+            >
+              手修正
+            </button>
+            <button
+              onClick={() => onRegenerate('failed')} disabled={regenerating || !canRegenerate}
+              className="border border-red-200 text-red-700 text-xs px-3 py-1.5 rounded-lg hover:bg-red-100 disabled:opacity-50 transition-colors"
+            >
+              不合格のみ再生成
+            </button>
+            <button
+              onClick={() => onRegenerate('all')} disabled={regenerating || !canRegenerate}
+              className="border border-red-200 text-red-700 text-xs px-3 py-1.5 rounded-lg hover:bg-red-100 disabled:opacity-50 transition-colors"
+            >
+              全体を再生成
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

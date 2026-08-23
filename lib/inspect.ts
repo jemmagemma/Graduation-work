@@ -2,7 +2,7 @@ import type { Question, Lesson, InspectionResult } from './types'
 
 const FORBIDDEN = [
   'フォーマル度', 'ドレスコード', 'ランク', 'レベル',
-  '格式', 'ステータス', '燕尾服', 'タキシード', 'カクテルドレス',
+  'ステータス', '燕尾服', 'タキシード', 'カクテルドレス',
 ]
 
 function hasForbidden(text: string): string[] {
@@ -29,6 +29,42 @@ function checkChoiceLength(
   }
 }
 
+export function failedQuestionIndexes(questions: Question[]): number[] {
+  return questions.flatMap((q, i) => inspectQuestion(q, i).length > 0 ? [i] : [])
+}
+
+export function inspectQuestion(q: Question, index: number): string[] {
+  const errors: string[] = []
+  const label = `設問${index + 1}`
+
+  if (!q.text?.trim()) errors.push(`${label}: 問題文がありません`)
+  if (!q.explanation?.trim()) errors.push(`${label}: 解説がありません`)
+
+  if (q.qType === 'four_choice') {
+    if (!q.choices || q.choices.length !== 4)
+      errors.push(`${label}: 選択肢が ${q.choices?.length ?? 0} つです（4つ必要）`)
+    if (q.correct === undefined || q.correct < 0 || q.correct > 3)
+      errors.push(`${label}: 正解インデックスが不正です`)
+    else if (q.choices?.length === 4)
+      checkChoiceLength(errors, label, q.choices, q.correct)
+  } else if (q.qType === 'true_false') {
+    if (typeof q.answer !== 'boolean')
+      errors.push(`${label}: 正解（○×）が true / false ではありません`)
+  } else {
+    errors.push(`${label}: 不明なタイプ "${(q as Question).qType}"`)
+  }
+
+  const bad = [
+    ...hasForbidden(q.text ?? ''),
+    ...hasForbidden(q.explanation ?? ''),
+    ...(q.choices ?? []).flatMap(hasForbidden),
+  ]
+  if (bad.length > 0)
+    errors.push(`${label}: 禁止語を含んでいます（${[...new Set(bad)].join('・')}）`)
+
+  return errors
+}
+
 export function inspect(
   questions: Question[],
   expectedCount: number | null,
@@ -44,32 +80,7 @@ export function inspect(
   }
 
   questions.forEach((q, i) => {
-    const label = `設問${i + 1}`
-
-    if (!q.text?.trim()) errors.push(`${label}: 問題文がありません`)
-    if (!q.explanation?.trim()) errors.push(`${label}: 解説がありません`)
-
-    if (q.qType === 'four_choice') {
-      if (!q.choices || q.choices.length !== 4)
-        errors.push(`${label}: 選択肢が ${q.choices?.length ?? 0} つです（4つ必要）`)
-      if (q.correct === undefined || q.correct < 0 || q.correct > 3)
-        errors.push(`${label}: 正解インデックスが不正です`)
-      else if (q.choices?.length === 4)
-        checkChoiceLength(errors, label, q.choices, q.correct)
-    } else if (q.qType === 'true_false') {
-      if (typeof q.answer !== 'boolean')
-        errors.push(`${label}: 正解（○×）が true / false ではありません`)
-    } else {
-      errors.push(`${label}: 不明なタイプ "${(q as Question).qType}"`)
-    }
-
-    const bad = [
-      ...hasForbidden(q.text ?? ''),
-      ...hasForbidden(q.explanation ?? ''),
-      ...(q.choices ?? []).flatMap(hasForbidden),
-    ]
-    if (bad.length > 0)
-      errors.push(`${label}: 禁止語を含んでいます（${[...new Set(bad)].join('・')}）`)
+    errors.push(...inspectQuestion(q, i))
   })
 
   return { status: errors.length === 0 ? 'pass' : 'fail', errors }

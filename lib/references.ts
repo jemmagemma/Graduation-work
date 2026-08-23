@@ -16,6 +16,10 @@ const BY_THEME: { test: RegExp; files: string[] }[] = [
     test: /黒留袖|色留袖|留袖|主催/,
     files: ['ichi-reisou-kurotomesode.txt', 'iro-tomesode-kiso.txt'],
   },
+  {
+    test: /振袖/,
+    files: ['hare-ke-daihakkai-furisode.txt'],
+  },
 ]
 
 export function selectReferenceFiles(courseTitle: string, lessonTitle: string): string[] {

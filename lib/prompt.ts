@@ -1,6 +1,27 @@
-import type { SeriesGuide, CourseGuide, Lesson } from './types'
+import type { SeriesGuide, CourseGuide, Lesson, Question } from './types'
 import { declaredQuestionCount } from './questionCount'
 import { loadReferencesForLesson } from './references'
+
+export type FailedReplace = {
+  keep: Question[]
+  failed: { question: Question; errors: string[] }[]
+}
+
+function formatQuestion(q: Question): string {
+  const lines = [
+    `id: ${q.id}`,
+    `qType: ${q.qType}`,
+    `text: ${q.text}`,
+  ]
+  if (q.qType === 'four_choice') {
+    lines.push(`choices: ${JSON.stringify(q.choices ?? [])}`)
+    lines.push(`correct: ${q.correct}`)
+  } else {
+    lines.push(`answer: ${q.answer}`)
+  }
+  lines.push(`explanation: ${q.explanation}`)
+  return lines.join('\n')
+}
 
 export function buildPrompt(
   seriesGuide: SeriesGuide,
@@ -9,9 +30,29 @@ export function buildPrompt(
   lessonTitle: string,
   lessonIndex: number,
   approvedLessons: Lesson[],
+  replaceFailed?: FailedReplace,
 ): { system: string; user: string } {
   const count = declaredQuestionCount(courseGuide, lessonIndex)
-  const countLabel = count === null ? '（コースガイドに問数が未宣言）' : `${count}問`
+  const countLabel = replaceFailed
+    ? `${replaceFailed.failed.length}問（不合格のみ。合格分は返すな）`
+    : count === null ? '（コースガイドに問数が未宣言）' : `${count}問`
+
+  const replaceSection = replaceFailed
+    ? `
+## 再生成の範囲
+検査不合格の設問だけを作り直す。合格した設問は一字も変えるな。返す questions は不合格の数だけ。id は指定どおり。
+
+## 残す設問（変えるな。同じシナリオ・同じ論点を繰り返すな）
+${replaceFailed.keep.length > 0
+    ? replaceFailed.keep.map(q => formatQuestion(q)).join('\n\n')
+    : '（なし）'}
+
+## 作り直す設問
+${replaceFailed.failed.map(({ question, errors }) =>
+      `不合格理由: ${errors.join(' / ')}\n${formatQuestion(question)}`
+    ).join('\n\n')}
+`
+    : ''
 
   const prior = approvedLessons
     .filter(l => l.lessonIndex < lessonIndex)
@@ -51,7 +92,7 @@ ${prior || '（なし・このレッスンが最初です）'}
 
 ## 参照テキスト（事実の照合用。語や範囲はガイドが正）
 ${loadReferencesForLesson(courseTitle, lessonTitle)}
-
+${replaceSection}
 ## 生成ルール
 - 問題文は、ガイドを知らない人が初めて読んでも、誰が・どこで・何の用件かが文面だけで分かること。「黒留袖を持っていないのですが、結婚式に出られますか。」は、誰の発言か・出るとは装いかが取れず不可。呉服売場であること、お客様の用件、困っている点を文に書く。「売場」と書き、「売り場」は使わない
 - 設問数は今回の設問数（${countLabel}）に合わせる。8問固定ではない。枠を埋めるための薄い問を足すな
