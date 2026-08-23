@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import type { DrillData, Lesson, Question, SeriesGuide, CourseGuide, Course } from '@/lib/types'
+import { declaredQuestionCount, formatQuestionCounts, parseQuestionCounts } from '@/lib/questionCount'
 
 /* ── UI 選択状態 ───────────────────────────────────────────── */
 type ActiveSelection =
@@ -264,6 +265,7 @@ export default function Page() {
           <LessonEditor
             lesson={selectedLesson}
             lessonIdx={selected.lessonIdx}
+            declaredCount={declaredQuestionCount(selectedCourse.guide, selected.lessonIdx)}
             apiKey={apiKey}
             generating={generatingId === selectedLesson.id}
             onGenerate={() => handleGenerate(selected.courseIdx, selected.lessonIdx)}
@@ -381,6 +383,7 @@ function GuidePane({
       <div className="flex-1 p-4 space-y-3 overflow-y-auto">
         <div className="space-y-3 bg-studio-card rounded-lg p-3">
           <FieldView label="各レッスンの役割" value={refCourse?.guide.lesson_roles || '（未記入）'} />
+          <FieldView label="各レッスンの問数" value={formatQuestionCounts(refCourse?.guide.question_counts) || '（未宣言）'} />
           <FieldView label="含めないこと" value={refCourse?.guide.exclude || ''} />
         </div>
         <p className="text-[10px] text-studio-muted text-center">コースを選択すると編集できます</p>
@@ -445,6 +448,12 @@ function CourseGuideForm({ title, initial, onSave }: { title: string; initial: C
       <PaneHeader badge="コースガイド" title={title} />
       <div className="flex-1 p-4 space-y-4 overflow-y-auto">
         <GF label="各レッスンの役割"           value={draft.lesson_roles} onChange={set('lesson_roles')} rows={5} />
+        <GF
+          label="各レッスンの問数（レッスン順・カンマ区切り。8問固定ではない）"
+          value={formatQuestionCounts(draft.question_counts)}
+          onChange={v => setDraft(d => ({ ...d, question_counts: parseQuestionCounts(v) }))}
+          rows={1}
+        />
         <GF label="各回で必ず出すこと"         value={draft.must_include} onChange={set('must_include')} rows={3} />
         <GF label="後のレッスンで再登場させること" value={draft.revisit}  onChange={set('revisit')}      rows={3} />
         <GF label="含めないこと"               value={draft.exclude}      readOnly                        rows={2} />
@@ -463,8 +472,8 @@ function CourseGuideForm({ title, initial, onSave }: { title: string; initial: C
 }
 
 /* ── P3: レッスン編集 ── */
-function LessonEditor({ lesson, lessonIdx, apiKey, generating, onGenerate, onApprove, onSelectQuestion }: {
-  lesson: Lesson; lessonIdx: number; apiKey: string; generating: boolean
+function LessonEditor({ lesson, lessonIdx, declaredCount, apiKey, generating, onGenerate, onApprove, onSelectQuestion }: {
+  lesson: Lesson; lessonIdx: number; declaredCount: number | null; apiKey: string; generating: boolean
   onGenerate: () => void; onApprove: () => void
   onSelectQuestion: (li: number, qi: number) => void
 }) {
@@ -556,7 +565,9 @@ function LessonEditor({ lesson, lessonIdx, apiKey, generating, onGenerate, onApp
                 機械検査: {INSPECT_LABEL[lesson.inspection.status]}
               </span>
               {lesson.inspection.status === 'pass' && (
-                <p className="text-emerald-600 mt-0.5">8問・タイプ形式OK・解説あり・禁止語なし</p>
+                <p className="text-emerald-600 mt-0.5">
+                  {declaredCount ?? lesson.questions.length}問・タイプ形式OK・解説あり・禁止語なし
+                </p>
               )}
               {lesson.inspection.errors.map((e, i) => (
                 <p key={i} className="text-red-500 mt-0.5">• {e}</p>

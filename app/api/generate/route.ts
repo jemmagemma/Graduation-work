@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { loadAll, saveLesson, findLesson } from '@/lib/data'
 import { runInspection } from '@/lib/inspect'
+import { declaredQuestionCount } from '@/lib/questionCount'
 import { buildPrompt } from '@/lib/prompt'
 import type { Lesson, Question } from '@/lib/types'
 
@@ -56,7 +57,10 @@ export async function POST(req: Request) {
       questions: parsed.questions,
       generationError: null,
     }
-    updated = runInspection(draft)
+    updated = runInspection(
+      draft,
+      declaredQuestionCount(course.guide, lesson.lessonIndex),
+    )
   } catch (e) {
     // 生成失敗：既存の下書きはそのまま残し、エラーだけ記録
     updated = {

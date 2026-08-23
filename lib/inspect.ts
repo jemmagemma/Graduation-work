@@ -29,11 +29,18 @@ function checkChoiceLength(
   }
 }
 
-export function inspect(questions: Question[]): InspectionResult {
+export function inspect(
+  questions: Question[],
+  expectedCount: number | null,
+): InspectionResult {
   const errors: string[] = []
 
-  if (questions.length !== 8) {
-    errors.push(`設問数が ${questions.length} 問です（8問必要）`)
+  if (expectedCount === null) {
+    errors.push('コースガイドにこのレッスンの問数が宣言されていません')
+  } else if (questions.length !== expectedCount) {
+    errors.push(
+      `設問数が ${questions.length} 問です（ガイド宣言は ${expectedCount} 問）`,
+    )
   }
 
   questions.forEach((q, i) => {
@@ -50,8 +57,8 @@ export function inspect(questions: Question[]): InspectionResult {
       else if (q.choices?.length === 4)
         checkChoiceLength(errors, label, q.choices, q.correct)
     } else if (q.qType === 'true_false') {
-      if (q.answer === undefined)
-        errors.push(`${label}: 正解（○×）が設定されていません`)
+      if (typeof q.answer !== 'boolean')
+        errors.push(`${label}: 正解（○×）が true / false ではありません`)
     } else {
       errors.push(`${label}: 不明なタイプ "${(q as Question).qType}"`)
     }
@@ -68,7 +75,10 @@ export function inspect(questions: Question[]): InspectionResult {
   return { status: errors.length === 0 ? 'pass' : 'fail', errors }
 }
 
-export function runInspection(lesson: Lesson): Lesson {
-  const result = inspect(lesson.questions)
+export function runInspection(
+  lesson: Lesson,
+  expectedCount: number | null,
+): Lesson {
+  const result = inspect(lesson.questions, expectedCount)
   return { ...lesson, inspection: result }
 }

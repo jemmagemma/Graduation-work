@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
-import { loadLesson, saveLesson } from '@/lib/data'
+import { loadAll, findLesson, saveLesson } from '@/lib/data'
 import { runInspection } from '@/lib/inspect'
+import { declaredQuestionCount } from '@/lib/questionCount'
 import type { Question } from '@/lib/types'
 
 export async function POST(req: Request) {
@@ -9,12 +10,14 @@ export async function POST(req: Request) {
       lessonId: string
       questions: Question[]
     }
-    const lesson = loadLesson(lessonId)
+    const found = findLesson(loadAll(), lessonId)
+    if (!found) throw new Error(`レッスン ${lessonId} が見つかりません`)
+    const { course, lesson } = found
     const updated = runInspection({
       ...lesson,
       questions,
       status: lesson.status === 'approved' ? 'approved' : 'draft',
-    })
+    }, declaredQuestionCount(course.guide, lesson.lessonIndex))
     saveLesson(updated)
     return NextResponse.json(updated)
   } catch (e) {

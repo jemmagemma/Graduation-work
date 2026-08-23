@@ -17,6 +17,8 @@ export interface CourseGuide {
   revisit: string
   exclude: string
   completion: string
+  /** レッスン順の設問数。8問固定ではない。未宣言の回は検査不合格 */
+  question_counts: number[]
 }
 
 export interface Question {
