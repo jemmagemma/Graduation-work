@@ -32,6 +32,10 @@ const BY_THEME: { test: RegExp; files: string[] }[] = [
     test: /地図|自由演技|紬|小紋/,
     files: ['kajuaru-fomaru-shuyaku.txt'],
   },
+  {
+    test: /江戸小紋|江戸三役|小紋| 色無地$/,
+    files: ['edo-sanyaku.txt'],
+  },
 ]
 
 export function selectReferenceFiles(courseTitle: string, lessonTitle: string): string[] {
