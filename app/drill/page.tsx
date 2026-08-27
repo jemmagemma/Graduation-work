@@ -23,7 +23,7 @@ export default function DrillHomePage() {
               const inner = (
                 <>
                   <span className={`text-xs font-bold w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${
-                    open ? 'bg-studio-ink text-white' : 'bg-stone-200 text-studio-muted'
+                    open ? 'bg-studio-ink text-white' : 'bg-studio-line text-studio-muted'
                   }`}>
                     {i + 1}
                   </span>
@@ -56,7 +56,7 @@ export default function DrillHomePage() {
                 <li key={course.id}>
                   <Link
                     href={`/drill/${course.id}`}
-                    className="flex items-center gap-3 bg-studio-card border border-studio-line rounded-xl px-4 py-3.5 hover:border-studio-title hover:shadow-sm transition-colors"
+                    className="flex items-center gap-3 bg-studio-card border border-studio-line rounded-xl px-4 py-3.5 hover:border-studio-ink hover:shadow-sm transition-colors"
                   >
                     {inner}
                   </Link>

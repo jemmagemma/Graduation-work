@@ -3,6 +3,15 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --studio-canvas: #F2EBEB;
+  --studio-ink: #1E3A5F;
+  --studio-ink-deep: #162C4A;
+  --studio-ink-hover: #2A4A73;
+  --studio-ink-active: #163052;
+  --studio-title: #5B7A9A;
+  --studio-line: #A8B0BA;
+  --studio-card: #FFFFFF;
+  --studio-muted: #4A5568;
 }
 
 @theme inline {
@@ -10,15 +19,30 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-  --color-studio-canvas: #F2EBEB;
-  --color-studio-ink: #1E3A5F;
-  --color-studio-ink-deep: #162C4A;
-  --color-studio-ink-hover: #2A4A73;
-  --color-studio-ink-active: #163052;
-  --color-studio-title: #5B7A9A;
-  --color-studio-line: #A8B0BA;
-  --color-studio-card: #FFFFFF;
-  --color-studio-muted: #4A5568;
+  --color-studio-canvas: var(--studio-canvas);
+  --color-studio-ink: var(--studio-ink);
+  --color-studio-ink-deep: var(--studio-ink-deep);
+  --color-studio-ink-hover: var(--studio-ink-hover);
+  --color-studio-ink-active: var(--studio-ink-active);
+  --color-studio-title: var(--studio-title);
+  --color-studio-line: var(--studio-line);
+  --color-studio-card: var(--studio-card);
+  --color-studio-muted: var(--studio-muted);
+  --color-drill-brand: #d61518;
+}
+
+/* ドリル画面のみ。参照: my-first-repo 厳格パレット
+   #000000 #666666 #ffffff #f2ebeb #d3d7e8 #1d3994 #d61518 */
+.drill-theme {
+  --studio-canvas: #f2ebeb;
+  --studio-ink: #1d3994;
+  --studio-ink-deep: #1d3994;
+  --studio-ink-hover: color-mix(in srgb, #1d3994 80%, #ffffff);
+  --studio-ink-active: #1d3994;
+  --studio-title: #1d3994;
+  --studio-line: #d3d7e8;
+  --studio-card: #ffffff;
+  --studio-muted: #666666;
 }
 
 @media (prefers-color-scheme: dark) {

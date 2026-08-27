@@ -25,7 +25,10 @@ export function LessonPlayer({
     setFinished(false)
   }, [lesson.id])
 
+  const fill = mode === 'drill' ? 'flex-1 min-h-0' : 'min-h-screen'
+  const center = mode === 'drill' ? 'flex-1 min-h-0' : 'h-screen'
   const courseHref = courseId ? `/drill/${courseId}` : '/drill'
+  const theme = mode === 'drill' ? 'drill-theme' : ''
 
   function reset() {
     setCurrent(0)
@@ -35,7 +38,7 @@ export function LessonPlayer({
 
   if (lesson.questions.length === 0) {
     return (
-      <div className="flex h-screen items-center justify-center bg-studio-canvas text-studio-muted text-sm text-center px-8">
+      <div className={`${theme} ${center} flex items-center justify-center bg-studio-canvas text-studio-muted text-sm text-center px-8`}>
         <div>
           <p className="text-lg font-bold mb-2 text-studio-ink">設問がありません</p>
           <p>先にレッスンを生成してください。</p>
@@ -51,7 +54,7 @@ export function LessonPlayer({
 
   if (finished) {
     return (
-      <div className="flex h-screen items-center justify-center bg-studio-canvas text-center px-8">
+      <div className={`${theme} ${center} flex items-center justify-center bg-studio-canvas text-center px-8`}>
         <div className="bg-studio-card rounded-2xl shadow-sm p-10 max-w-sm w-full">
           <div className="text-4xl mb-4">✓</div>
           <h2 className="text-lg font-bold text-studio-ink mb-2">レッスン完了</h2>
@@ -107,7 +110,7 @@ export function LessonPlayer({
   )
 
   return (
-    <div className="min-h-screen bg-studio-canvas flex flex-col font-sans">
+    <div className={`${theme} ${fill} bg-studio-canvas flex flex-col font-sans`}>
       <header className="bg-studio-card border-b border-studio-line px-6 py-3 flex items-center gap-4 shrink-0">
         <div>
           <span className="text-[10px] text-studio-muted tracking-wide">
@@ -116,7 +119,7 @@ export function LessonPlayer({
           <h1 className="text-sm font-bold text-studio-ink leading-tight">{lesson.title}</h1>
         </div>
         <div className="flex-1">
-          <div className="h-1.5 bg-stone-200 rounded-full overflow-hidden">
+          <div className="h-1.5 bg-studio-line rounded-full overflow-hidden">
             <div
               className="h-full bg-studio-title rounded-full transition-all"
               style={{ width: `${progress}%` }}
@@ -192,7 +195,7 @@ export function LessonPlayer({
               <p className={`text-sm font-bold ${isCorrect ? 'text-emerald-700' : 'text-red-600'}`}>
                 {isCorrect ? '✓ 正解！' : '✗ 不正解'}
               </p>
-              <p className="text-sm text-slate-700 leading-relaxed">{q.explanation}</p>
+              <p className="text-sm text-studio-ink leading-relaxed">{q.explanation}</p>
             </div>
           )}
 
@@ -230,14 +233,14 @@ function ChoiceButton({ label, text, state, disabled, onClick }: {
         'w-full flex items-start gap-3 text-left px-4 py-3 rounded-xl border-2 transition-colors text-sm',
         state === 'correct' ? 'border-emerald-400 bg-emerald-50 text-emerald-800' :
         state === 'wrong'   ? 'border-red-400 bg-red-50 text-red-800' :
-        disabled            ? 'border-stone-200 text-slate-400 cursor-default' :
-        'border-stone-200 hover:border-slate-400 hover:bg-stone-50 text-slate-700',
+        disabled            ? 'border-studio-line text-studio-muted cursor-default' :
+        'border-studio-line hover:border-studio-ink hover:bg-studio-canvas text-studio-ink',
       ].join(' ')}
     >
       <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 mt-0.5 ${
         state === 'correct' ? 'bg-emerald-500 text-white' :
         state === 'wrong'   ? 'bg-red-500 text-white' :
-        'bg-stone-200 text-slate-500'
+        'bg-studio-line text-studio-muted'
       }`}>{label}</span>
       <span>{text}</span>
     </button>
@@ -256,14 +259,14 @@ function TFButton({ val, state, disabled, onClick }: {
         'flex-1 flex flex-col items-center gap-1 py-4 rounded-xl border-2 transition-colors',
         state === 'correct' ? 'border-emerald-400 bg-emerald-50' :
         state === 'wrong'   ? 'border-red-400 bg-red-50' :
-        disabled            ? 'border-stone-200 cursor-default' :
-        'border-stone-200 hover:border-slate-400 hover:bg-stone-50',
+        disabled            ? 'border-studio-line cursor-default' :
+        'border-studio-line hover:border-studio-ink hover:bg-studio-canvas',
       ].join(' ')}
     >
       <span className="text-3xl leading-none">{val ? '○' : '×'}</span>
       <span className={`text-sm font-medium ${
         state === 'correct' ? 'text-emerald-700' :
-        state === 'wrong'   ? 'text-red-600' : 'text-slate-600'
+        state === 'wrong'   ? 'text-red-600' : 'text-studio-muted'
       }`}>{val ? '正しい' : '誤り'}</span>
     </button>
   )

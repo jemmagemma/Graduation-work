@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 import { loadAll } from '@/lib/data'
 import { approvedLessons, nextApprovedLesson } from '@/lib/drill'
+import { DrillShell } from '@/components/drill-shell'
 import { LessonPlayer } from '@/components/lesson-player'
 
 export default async function DrillLessonPage({
@@ -19,12 +20,14 @@ export default async function DrillLessonPage({
   const next = nextApprovedLesson(course, lessonId)
 
   return (
-    <LessonPlayer
-      key={lesson.id}
-      lesson={lesson}
-      mode="drill"
-      courseId={course.id}
-      nextLesson={next ? { id: next.id, title: next.title } : null}
-    />
+    <DrillShell>
+      <LessonPlayer
+        key={lesson.id}
+        lesson={lesson}
+        mode="drill"
+        courseId={course.id}
+        nextLesson={next ? { id: next.id, title: next.title } : null}
+      />
+    </DrillShell>
   )
 }

@@ -42,7 +42,7 @@ export default async function DrillCoursePage({
                 <li key={lesson.id}>
                   <Link
                     href={`/drill/${course.id}/${lesson.id}`}
-                    className="flex items-center gap-3 bg-studio-card border border-studio-line rounded-xl px-4 py-3.5 hover:border-studio-title hover:shadow-sm transition-colors"
+                    className="flex items-center gap-3 bg-studio-card border border-studio-line rounded-xl px-4 py-3.5 hover:border-studio-ink hover:shadow-sm transition-colors"
                   >
                     <span className="text-xs font-bold w-7 h-7 rounded-full flex items-center justify-center shrink-0 bg-studio-ink text-white">
                       {i + 1}
