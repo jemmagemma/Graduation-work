@@ -72,6 +72,8 @@ ${replaceFailed.failed.map(({ question, errors }) =>
 使う用語: ${seriesGuide.terms || '（未記入）'}
 補助概念（任意）: ${seriesGuide.aux_concept || '（なし）'}
 禁止する言い換え: ${seriesGuide.forbidden_synonyms}
+統一語: ${seriesGuide.canonical_terms || '（なし）'}
+置換しない語: ${seriesGuide.rewrite_exclusions || '（なし）'}
 例外: ${seriesGuide.exceptions || '（未記入）'}
 文体: ${seriesGuide.writing_style || '（未記入）'}
 
@@ -105,6 +107,7 @@ ${mapLesson3Rules}- ○×は「〜である。」で終わる断言形
 - 各設問に必ず2〜3文の解説
 - 規定演技／自由演技はドリル内の例えである。正解にその名称を要求するな。解説で「決まりの多い側をここでは規定演技と呼ぶ」と共有してよい。問うのは、形式と敬いの論理、洒落ものの制約である。ファッション延長（ブーツ合わせ、襦袢の代わりのTシャツ）はこのシリーズでは扱わない。紬に金の袋帯は洒落ものから外れた装いである。メタファーはフォーマル導入用であり、自由側との対比を無理に完成させない
 - 禁止語（${seriesGuide.forbidden_synonyms}）は絶対に使わない
+- 表記は統一語の正表記に揃える。置換しない語はそのまま残す
 - 色留袖・付下などを指すときは「品目」を使う。「アイテム」は使わない
 - コース1の設問では「品目の格」または「TPO上の格」と書き、裸の「格」だけで問わない（お客様の発言引用のみ例外）
 - 「選択品」という語は使わない

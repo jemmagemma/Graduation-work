@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
-import { saveSeriesGuide, saveCourseGuide } from '@/lib/data'
+import { saveSeriesGuide, saveCourseGuide, applyCanonicalToAllLessons, loadAll } from '@/lib/data'
+import { emptyCanonicalRewriteReport } from '@/lib/canonicalTerms'
 import type { SeriesGuide, CourseGuide } from '@/lib/types'
 
 export async function POST(req: Request) {
@@ -10,10 +11,12 @@ export async function POST(req: Request) {
 
     if (body.type === 'series') {
       saveSeriesGuide(body.guide)
-    } else {
-      saveCourseGuide(body.courseId, body.guide)
+      const canonicalRewrite = applyCanonicalToAllLessons(body.guide)
+      return NextResponse.json({ ok: true, canonicalRewrite, data: loadAll() })
     }
-    return NextResponse.json({ ok: true })
+
+    saveCourseGuide(body.courseId, body.guide)
+    return NextResponse.json({ ok: true, canonicalRewrite: emptyCanonicalRewriteReport() })
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 500 })
   }

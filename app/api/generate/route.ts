@@ -3,6 +3,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { loadAll, saveLesson, findLesson } from '@/lib/data'
 import { inspectQuestion, runInspection } from '@/lib/inspect'
 import { declaredQuestionCount } from '@/lib/questionCount'
+import { rewriteQuestions, emptyCanonicalRewriteReport } from '@/lib/canonicalTerms'
 import { buildPrompt } from '@/lib/prompt'
 import type { Lesson, Question } from '@/lib/types'
 
@@ -90,13 +91,15 @@ export async function POST(req: Request) {
     const parsed = JSON.parse(jsonMatch[0]) as { questions: Question[] }
     if (!Array.isArray(parsed.questions)) throw new Error('questionsフィールドがありません')
 
-    const questions = replaceFailed
+    const merged = replaceFailed
       ? mergeReplacements(
           lesson.questions,
           parsed.questions,
           replaceFailed.failed.map(f => f.question.id),
         )
       : parsed.questions
+
+    const { questions, report } = rewriteQuestions(merged, data.series.guide)
 
     const draft: Lesson = {
       ...lesson,
@@ -108,13 +111,14 @@ export async function POST(req: Request) {
       draft,
       declaredQuestionCount(course.guide, lesson.lessonIndex),
     )
+    saveLesson(updated)
+    return NextResponse.json({ ...updated, canonicalRewrite: report })
   } catch (e) {
     updated = {
       ...lesson,
       generationError: e instanceof Error ? e.message : String(e),
     }
+    saveLesson(updated)
+    return NextResponse.json({ ...updated, canonicalRewrite: emptyCanonicalRewriteReport() })
   }
-
-  saveLesson(updated)
-  return NextResponse.json(updated)
 }

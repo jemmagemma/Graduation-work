@@ -2,6 +2,9 @@ import { eq } from 'drizzle-orm'
 import { db } from './db'
 import { series, courses, lessons, questions } from './db/schema'
 import type { SeriesGuide, CourseGuide, Lesson, DrillData, Question, Course } from './types'
+import { normalizeSeriesGuide, rewriteQuestions, mergeCanonicalReports, type CanonicalRewriteReport } from './canonicalTerms'
+import { runInspection } from './inspect'
+import { declaredQuestionCount } from './questionCount'
 
 // ── 内部変換ヘルパー ──────────────────────────────────────────
 
@@ -59,7 +62,7 @@ export function loadAll(): DrillData {
     series: {
       id:    ser.id,
       title: ser.title,
-      guide: JSON.parse(ser.guide) as SeriesGuide,
+      guide: normalizeSeriesGuide(JSON.parse(ser.guide) as SeriesGuide),
     },
     courses: courseRows
       .sort((a, b) => a.courseIndex - b.courseIndex)
@@ -105,6 +108,27 @@ export function findLesson(
     if (lesson) return { course, lesson }
   }
   return null
+}
+
+export function applyCanonicalToAllLessons(guide: SeriesGuide): CanonicalRewriteReport {
+  const data = loadAll()
+  const reports: CanonicalRewriteReport[] = []
+
+  for (const course of data.courses) {
+    for (const lesson of course.lessons) {
+      if (lesson.questions.length === 0) continue
+      const { questions: rewritten, report } = rewriteQuestions(lesson.questions, guide)
+      if (report.total === 0) continue
+      reports.push(report)
+      const updated = runInspection({
+        ...lesson,
+        questions: rewritten,
+      }, declaredQuestionCount(course.guide, lesson.lessonIndex))
+      saveLesson({ ...updated, status: lesson.status })
+    }
+  }
+
+  return mergeCanonicalReports(reports)
 }
 
 export function saveLesson(lesson: Lesson): void {

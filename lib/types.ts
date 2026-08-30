@@ -7,6 +7,10 @@ export interface SeriesGuide {
   terms: string
   aux_concept: string
   forbidden_synonyms: string
+  /** 1行が1グループ。正表記 ← 別名, 別名 */
+  canonical_terms: string
+  /** この文字列は丸ごと置換しない。読点区切り */
+  rewrite_exclusions: string
   exceptions: string
   writing_style: string
 }

@@ -4,6 +4,12 @@ import { useState, useEffect, useCallback } from 'react'
 import type { DrillData, Lesson, Question, SeriesGuide, CourseGuide, Course } from '@/lib/types'
 import { failedQuestionIndexes, inspectQuestion } from '@/lib/inspect'
 import { declaredQuestionCount, formatQuestionCounts, parseQuestionCounts } from '@/lib/questionCount'
+import {
+  DEFAULT_CANONICAL_TERMS,
+  DEFAULT_REWRITE_EXCLUSIONS,
+  formatCanonicalRewriteReport,
+  type CanonicalRewriteReport,
+} from '@/lib/canonicalTerms'
 
 /* ── UI 選択状態 ───────────────────────────────────────────── */
 type ActiveSelection =
@@ -26,7 +32,14 @@ const INSPECT_LABEL = { pending: '未実施', pass: '合格', fail: '不合格' 
 const EMPTY_SERIES_GUIDE: SeriesGuide = {
   purpose: '', terms: '', aux_concept: '',
   forbidden_synonyms: 'フォーマル度・ドレスコード・ランク・レベル・ステータス・燕尾服・タキシード・カクテルドレス',
+  canonical_terms: DEFAULT_CANONICAL_TERMS,
+  rewrite_exclusions: DEFAULT_REWRITE_EXCLUSIONS,
   exceptions: '', writing_style: '',
+}
+
+type LessonSaveResponse = Lesson & {
+  error?: string
+  canonicalRewrite?: CanonicalRewriteReport
 }
 
 /* ── メインページ ─────────────────────────────────────────── */
@@ -37,6 +50,7 @@ export default function Page() {
   const [apiKey, setApiKey]           = useState('')
   const [initLoading, setInitLoading] = useState(true)
   const [generatingId, setGeneratingId] = useState<string | null>(null)
+  const [rewriteNotice, setRewriteNotice] = useState('')
 
   const [selected, setSelected]   = useState<ActiveSelection>({ type: 'series' })
   const [seriesOpen, setSeriesOpen] = useState(true)
@@ -81,18 +95,21 @@ export default function Page() {
     }
 
     setGeneratingId(lesson.id)
+    setRewriteNotice('')
     const res = await fetch('/api/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ lessonId: lesson.id, apiKey, scope: generateScope }),
     })
-    const data = await res.json() as Lesson & { error?: string }
+    const data = await res.json() as LessonSaveResponse
     setGeneratingId(null)
     if (data.error && !data.questions) {
       window.alert(data.error)
       return
     }
-    updateLesson(data)
+    const { canonicalRewrite, error: _error, ...updated } = data
+    updateLesson(updated)
+    setRewriteNotice(formatCanonicalRewriteReport(canonicalRewrite))
     setSelected({ type: 'lesson', courseIdx, lessonIdx })
   }, [courses, apiKey, updateLesson])
 
@@ -110,15 +127,17 @@ export default function Page() {
 
   const handleSaveQuestion = useCallback(async (courseIdx: number, lessonIdx: number, updatedQ: Question) => {
     const lesson = courses[courseIdx]?.lessons[lessonIdx]
-    if (!lesson) return
+    if (!lesson) return ''
     const questions = lesson.questions.map(q => q.id === updatedQ.id ? updatedQ : q)
     const res = await fetch('/api/save-lesson', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ lessonId: lesson.id, questions }),
     })
-    const data = await res.json() as Lesson
-    updateLesson(data)
+    const data = await res.json() as LessonSaveResponse
+    const { canonicalRewrite, error: _error, ...updated } = data
+    updateLesson(updated)
+    return formatCanonicalRewriteReport(canonicalRewrite)
   }, [courses, updateLesson])
 
   if (initLoading) {
@@ -246,12 +265,24 @@ export default function Page() {
           courses={courses}
           apiKey={apiKey}
           onSaveSeriesGuide={async (g) => {
-            await fetch('/api/save-guide', {
+            const res = await fetch('/api/save-guide', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ type: 'series', guide: g }),
             })
-            setSeriesGuide(g)
+            const body = await res.json() as {
+              ok?: boolean
+              canonicalRewrite?: CanonicalRewriteReport
+              data?: DrillData
+              error?: string
+            }
+            if (body.data) {
+              setSeriesGuide(body.data.series.guide)
+              setCourses(body.data.courses)
+            } else {
+              setSeriesGuide(g)
+            }
+            return formatCanonicalRewriteReport(body.canonicalRewrite)
           }}
           onSaveCourseGuide={async (courseId, g) => {
             await fetch('/api/save-guide', {
@@ -288,6 +319,7 @@ export default function Page() {
             generating={generatingId === selectedLesson.id}
             onGenerate={(scope = 'all') => handleGenerate(selected.courseIdx, selected.lessonIdx, scope)}
             onApprove={() => handleApprove(selected.courseIdx, selected.lessonIdx)}
+            rewriteNotice={rewriteNotice}
             onSelectQuestion={(li, qi) => setSelected({
               type: 'question',
               courseIdx: selected.courseIdx,
@@ -336,7 +368,7 @@ function GuidePane({
   seriesGuide: SeriesGuide
   courses: Course[]
   apiKey: string
-  onSaveSeriesGuide: (g: SeriesGuide) => Promise<void>
+  onSaveSeriesGuide: (g: SeriesGuide) => Promise<string>
   onSaveCourseGuide: (courseId: string, g: CourseGuide) => Promise<void>
   onSaveApiKey: (k: string) => void
 }) {
@@ -411,16 +443,18 @@ function GuidePane({
 }
 
 /* ── シリーズガイドフォーム ── */
-function SeriesGuideForm({ title, initial, onSave }: { title: string; initial: SeriesGuide; onSave: (g: SeriesGuide) => Promise<void> }) {
+function SeriesGuideForm({ title, initial, onSave }: { title: string; initial: SeriesGuide; onSave: (g: SeriesGuide) => Promise<string> }) {
   const [draft, setDraft] = useState(initial)
   const [saving, setSaving] = useState(false)
+  const [rewriteNotice, setRewriteNotice] = useState('')
   useEffect(() => { setDraft(initial) }, [initial])
 
   const set = (k: keyof SeriesGuide) => (v: string) => setDraft(d => ({ ...d, [k]: v }))
 
   async function handleSave() {
     setSaving(true)
-    await onSave(draft)
+    const notice = await onSave(draft)
+    setRewriteNotice(notice)
     setSaving(false)
   }
 
@@ -432,10 +466,13 @@ function SeriesGuideForm({ title, initial, onSave }: { title: string; initial: S
         <GF label="使う用語"        value={draft.terms}             onChange={set('terms')}             rows={3} />
         <GF label="補助概念（任意）" value={draft.aux_concept}      onChange={set('aux_concept')}       rows={5} />
         <GF label="禁止する言い換え" value={draft.forbidden_synonyms} readOnly rows={2} />
+        <GF label="統一語（1行が1グループ。正表記 ← 別名, 別名）" value={draft.canonical_terms ?? ''} onChange={set('canonical_terms')} rows={7} />
+        <GF label="置換しない語（この文字列は丸ごと触らない。読点区切り）" value={draft.rewrite_exclusions ?? ''} onChange={set('rewrite_exclusions')} rows={2} />
         <GF label="例外"            value={draft.exceptions}        onChange={set('exceptions')}        rows={8} />
         <GF label="文体"            value={draft.writing_style}     onChange={set('writing_style')}     rows={5} />
       </div>
-      <div className="p-4 border-t border-studio-line shrink-0">
+      <div className="p-4 border-t border-studio-line shrink-0 space-y-2">
+        <RewriteBanner text={rewriteNotice} />
         <button
           onClick={handleSave} disabled={saving}
           className="w-full bg-studio-ink text-white text-xs py-2 rounded-lg hover:bg-studio-ink-hover disabled:opacity-50 transition-colors"
@@ -490,8 +527,9 @@ function CourseGuideForm({ title, initial, onSave }: { title: string; initial: C
 }
 
 /* ── P3: レッスン編集 ── */
-function LessonEditor({ lesson, lessonIdx, declaredCount, apiKey, generating, onGenerate, onApprove, onSelectQuestion }: {
+function LessonEditor({ lesson, lessonIdx, declaredCount, apiKey, generating, rewriteNotice, onGenerate, onApprove, onSelectQuestion }: {
   lesson: Lesson; lessonIdx: number; declaredCount: number | null; apiKey: string; generating: boolean
+  rewriteNotice: string
   onGenerate: (scope?: 'all' | 'failed') => void; onApprove: () => void
   onSelectQuestion: (li: number, qi: number) => void
 }) {
@@ -522,6 +560,8 @@ function LessonEditor({ lesson, lessonIdx, declaredCount, apiKey, generating, on
             <p className="text-red-400 mt-1">下書きはそのまま残っています。再生成してください。</p>
           </div>
         )}
+
+        <RewriteBanner text={rewriteNotice} />
 
         {/* アクションバー */}
         <div className="flex items-center gap-3 flex-wrap">
@@ -767,17 +807,19 @@ function QuestionResultCard({
 /* ── P3: 設問編集 ── */
 function QuestionEditor({ lesson, lessonIdx, question, qIdx, onSave }: {
   lesson: Lesson; lessonIdx: number; question: Question; qIdx: number
-  onSave: (q: Question) => Promise<void>
+  onSave: (q: Question) => Promise<string>
 }) {
   const [draft, setDraft] = useState(question)
   const [saving, setSaving]   = useState(false)
+  const [rewriteNotice, setRewriteNotice] = useState('')
   useEffect(() => { setDraft(question) }, [question])
 
   if (!question) return null
 
   async function handleSave() {
     setSaving(true)
-    await onSave(draft)
+    const notice = await onSave(draft)
+    setRewriteNotice(notice)
     setSaving(false)
   }
 
@@ -883,6 +925,8 @@ function QuestionEditor({ lesson, lessonIdx, question, qIdx, onSave }: {
           </button>
         </div>
 
+        <RewriteBanner text={rewriteNotice} />
+
         <p className="text-center text-[10px] text-studio-muted">
           設問 {qIdx + 1} / {lesson.questions.length}
         </p>
@@ -904,6 +948,15 @@ function PaneHeader({ badge, title, right, dimmed }: {
         {title}
       </span>
       {right}
+    </div>
+  )
+}
+
+function RewriteBanner({ text }: { text: string }) {
+  if (!text) return null
+  return (
+    <div className="rounded-lg border border-studio-line bg-white px-3 py-2 text-[11px] text-studio-ink">
+      <span className="font-semibold">表記を直した: </span>{text}
     </div>
   )
 }
