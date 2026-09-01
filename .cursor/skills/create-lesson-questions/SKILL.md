@@ -38,7 +38,7 @@ disable-model-invocation: true
 
 ## STEP 1：ガイド確認
 
-`series.guide` と対象コースの `guide` を見る。空欄なら P2 で記入を促して停止する。
+ドリル全体の冠（`data/references/職場ドリル_呉服売場版.md`）と `series.guide` と対象コースの `guide` を見る。空欄なら P2 で記入を促して停止する。学習の型は冠。このシリーズの仕事はシリーズ／コースガイド。冠の成功定義はコース4から設問の主。コース1〜3の承認済みは遡及しない。
 
 コースガイドで必須なのは `lesson_roles` / `must_include` / `exclude` / **`question_counts`**。対象回の `question_counts[lessonIndex]` が無い、または1未満なら、ガイドで問数を宣言してから進む。
 

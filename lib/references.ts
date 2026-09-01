@@ -3,8 +3,11 @@ import { join } from 'path'
 
 const DIR = join(process.cwd(), 'data', 'references')
 
-/** 生成に載せない。相当する洋装の問題を誘発するため */
-const EXCLUDE_FROM_GENERATION = new Set(['kakuzuke-youfuku-hikaku.txt'])
+/** ドリル全体の冠。学習の型。事実摘録ではない。レッスン名では選ばない */
+const CROWN = '職場ドリル_呉服売場版.md'
+
+/** 事実ブロックに載せない。洋装誘発の摘録と、別枠で先頭に載せる冠 */
+const EXCLUDE_FROM_GENERATION = new Set(['kakuzuke-youfuku-hikaku.txt', CROWN])
 
 const ALWAYS = [
   'kakuzuke-5kaisou-kanzen-gaido.txt',
@@ -37,6 +40,10 @@ const BY_THEME: { test: RegExp; files: string[] }[] = [
     files: ['edo-sanyaku.txt'],
   },
   {
+    test: /小紋/,
+    files: ['komon.txt'],
+  },
+  {
     test: /紬|お召|御召/,
     files: ['tsumugi-omeshi.txt'],
   },
@@ -46,11 +53,11 @@ const BY_THEME: { test: RegExp; files: string[] }[] = [
   },
   {
     test: /素材|羽二重|縮緬/,
-    files: ['sozai-kaku-teire.txt'],
+    files: ['sozai-kaku-teire.txt', 'some-ori.txt'],
   },
   {
     test: /帯で格|袋帯|名古屋帯|格を調整して提案する 帯/,
-    files: ['obi-kakuawase.txt'],
+    files: ['obi-kakuawase.txt', 'nagoya-obi.txt'],
   },
   {
     test: /小物で格|帯締め|帯揚げ|格を調整して提案する 小物/,
@@ -60,7 +67,17 @@ const BY_THEME: { test: RegExp; files: string[] }[] = [
     test: /紋付|黒紋付|色紋付|紬と素材/,
     files: ['dansei-kimono.txt'],
   },
+  {
+    test: /街着|ゆかた|浴衣/,
+    files: ['yukata-tpo.txt'],
+  },
 ]
+
+export function loadCrownGuide(): string {
+  const path = join(DIR, CROWN)
+  if (!existsSync(path)) return '（未配置）'
+  return readFileSync(path, 'utf8').trim()
+}
 
 export function selectReferenceFiles(courseTitle: string, lessonTitle: string): string[] {
   const hay = `${courseTitle} ${lessonTitle}`

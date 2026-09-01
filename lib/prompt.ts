@@ -1,6 +1,6 @@
 import type { SeriesGuide, CourseGuide, Lesson, Question } from './types'
 import { declaredQuestionCount } from './questionCount'
-import { loadReferencesForLesson } from './references'
+import { loadCrownGuide, loadReferencesForLesson } from './references'
 
 export type FailedReplace = {
   keep: Question[]
@@ -63,11 +63,18 @@ ${replaceFailed.failed.map(({ question, errors }) =>
   const mapLesson3Rules = isMapLesson3
     ? `- この回の仕事は前提合わせである。会場・雰囲気・TPO・和装にしたい理由を伺ってから見立てる。所有や昭和様式そのものを問うな。背景は、家の本のようなお客様の決めつけとして出す\n`
     : ''
+  const isFromCourse4 = /自由演技|格を調整/.test(courseTitle)
+  const course4PlusRules = isFromCourse4
+    ? `- このコースから、冠の成功定義を設問の主にする。主は次に言う・聞く一言か、提案する方向である。定義・代表・成り立ちの知識確認を主にするな。絵羽・袖の長さ・柄の位置など見た目の識別を出すな。ドリルの目的や設計を問うな。「代表を見分ける」を標語の問いにするな\n`
+    : ''
 
   const system = `あなたは百貨店呉服部の専門家として、販売員研修用ドリルの設問を作成します。
 指定されたJSONスキーマのみを返してください。説明文・マークダウン・コードブロックは不要です。`
 
-  const user = `## シリーズガイド「品目の格とTPO」
+  const user = `## ドリルガイド（冠。学習の型・成功定義。このシリーズの品目・メタファー・問数・禁止語は下のガイドが正）
+${loadCrownGuide()}
+
+## シリーズガイド「品目の格とTPO」
 目的: ${seriesGuide.purpose || '（未記入）'}
 使う用語: ${seriesGuide.terms || '（未記入）'}
 補助概念（任意）: ${seriesGuide.aux_concept || '（なし）'}
@@ -103,7 +110,7 @@ ${replaceSection}
 - 四択の4文は同じ構文・同程度の長さにする。正解にだけ理由や条件を足して長くしない（長さで当たる）。理由は解説に書く
 - ダミーは一目で落とせない、現場でありそうな誤りにする。呉服の早見表としては正しく見えうる決めつけを置け。例：続柄なら一択、既婚か未婚かを伺う、着用頻度で勧否を決める、家の本の通りに用意する。既婚か未婚かは、今はプライベートであり失礼・クレームのリスクがある。正解の伺いは、会場・雰囲気・TPO・和装にしたい理由である。昔の前提なら色留袖一択もあながち間違いではないが、平服の場に第一礼装は調和せず敬意につながらないことがある。価格ダミーはそのレッスンで多くても1問
 - 所有や昭和の変化そのものを問うな。根拠にならない情報を問題文に足すな。参照の一面だけを拾って標語の問いにするな
-${mapLesson3Rules}- ○×は「〜である。」で終わる断言形
+${mapLesson3Rules}${course4PlusRules}- ○×は「〜である。」で終わる断言形
 - 各設問に必ず2〜3文の解説
 - 規定演技／自由演技はドリル内の例えである。正解にその名称を要求するな。解説で「決まりの多い側をここでは規定演技と呼ぶ」と共有してよい。問うのは、形式と敬いの論理、洒落ものの制約である。ファッション延長（ブーツ合わせ、襦袢の代わりのTシャツ）はこのシリーズでは扱わない。紬に金の袋帯は洒落ものから外れた装いである。メタファーはフォーマル導入用であり、自由側との対比を無理に完成させない
 - 禁止語（${seriesGuide.forbidden_synonyms}）は絶対に使わない
